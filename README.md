@@ -113,7 +113,13 @@ This is a personal project, but suggestions and feedback are welcome. Please ens
 
 ## 📄 License
 
-[License information to be determined]
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+
+The GPL v3.0 ensures that:
+- This software remains free and open source
+- Any modifications must also be released under the GPL
+- Users have the right to view, modify, and distribute the source code
+- The software comes with no warranty
 
 ## 📞 Support
 
