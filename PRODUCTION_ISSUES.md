@@ -180,19 +180,12 @@ This document lists all identified gaps, risks, and enhancements required to bri
   - **Refs**: `SegmentManagerService.kt`, `StorageManager.kt`, `MainActivity.kt`.
 
 - **P2: Room migrations plan**
-  - **Problem**: `fallbackToDestructiveMigration()` will wipe data on version change.
-  - **Tasks**:
-    - [ ] Define v2 migration for any schema changes.
-    - [ ] Add test covering migration path.
-  - **Acceptance**: Schema changes preserve data.
-  - **Refs**: `ListenDatabase.kt`.
+  - Resolved: Added v2 migration scaffold and enabled exportSchema for future tracking.
+  - Refs: `ListenDatabase.kt`. 
 
 - **P2: Remove unnecessary storage permissions**
-  - **Problem**: `READ/WRITE_EXTERNAL_STORAGE` declared (capped by `maxSdkVersion`), but app uses app-private storage.
-  - **Tasks**:
-    - [ ] Remove unless strictly needed for legacy support and implement scoped storage if external export is added later.
-  - **Acceptance**: App builds/runs without these permissions on supported SDKs.
-  - **Refs**: `AndroidManifest.xml` (7–10).
+  - Resolved: Removed legacy `READ/WRITE_EXTERNAL_STORAGE` permissions; using app-private storage.
+  - Refs: `AndroidManifest.xml`. 
 
 - **P2: Cancel scheduled work when stopping service**
   - **Problem**: Unique periodic work is enqueued but never canceled on stop.
