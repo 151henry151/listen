@@ -210,6 +210,8 @@ class MainActivity : AppCompatActivity() {
                 binding.tvStorageUsage.text = storageStats
                 binding.tvAvailableStorage.text = "Available: $availableStorage"
                 
+                maybeWarnLowStorage()
+                
                 Log.d(TAG, "Service enabled: $isServiceEnabled")
                 Log.d(TAG, "Storage usage: $storageStats")
                 Log.d(TAG, "Available storage: $availableStorage")
@@ -287,6 +289,16 @@ class MainActivity : AppCompatActivity() {
     /** Open settings activity */
     fun openSettings() {
         startActivity(Intent(this, SettingsActivity::class.java))
+    }
+    
+    private fun maybeWarnLowStorage() {
+        try {
+            val estRequired = settings.calculateStorageUsage()
+            val available = storageManager.getAvailableStorage()
+            if (available < estRequired * 2 / 10) { // <20% of estimated requirement
+                Toast.makeText(this, getString(R.string.msg_storage_full), Toast.LENGTH_SHORT).show()
+            }
+        } catch (_: Exception) {}
     }
     
     companion object {

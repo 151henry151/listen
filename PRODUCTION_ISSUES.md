@@ -168,12 +168,8 @@ This document lists all identified gaps, risks, and enhancements required to bri
   - **Refs**: `app/src/main/java/com/listen/app/storage/StorageManager.kt` (24–28).
 
 - **P2: Respect or redefine `showNotification` setting**
-  - **Problem**: Foreground services must show a notification; the setting is currently unused and misleading.
-  - **Tasks**:
-    - [ ] Either remove the setting or scope it to secondary (non-FGS) notifications.
-    - [ ] Update UI and docs accordingly.
-  - **Acceptance**: Setting behavior is consistent and compliant with FGS requirements.
-  - **Refs**: `SettingsManager.kt`, `ListenForegroundService.kt`.
+  - Resolved: Removed misleading setting; FGS always shows a notification.
+  - Refs: `SettingsManager.kt`.
 
 - **P2: Improve storage health and telemetry**
   - **Problem**: No proactive alerts or UI indicators when storage is low; emergency cleanup not surfaced to user.

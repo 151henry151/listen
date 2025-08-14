@@ -20,6 +20,11 @@ import androidx.recyclerview.widget.RecyclerView
 import android.widget.Button
 import android.widget.SeekBar
 import android.widget.TextView
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 
 /**
  * Activity for playing back recorded audio segments
@@ -42,6 +47,8 @@ class PlaybackActivity : AppCompatActivity() {
     private lateinit var btnStop: Button
     private lateinit var adapter: SegmentAdapter
     
+    private var progressJob: Job? = null
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_playback)
@@ -61,6 +68,7 @@ class PlaybackActivity : AppCompatActivity() {
         super.onDestroy()
         stopPlayback()
         abandonAudioFocus()
+        progressJob?.cancel()
     }
     
     /** Set up the user interface */
@@ -162,6 +170,7 @@ class PlaybackActivity : AppCompatActivity() {
             seekBar.max = getDuration()
             tvTotalTime.text = formatMs(getDuration().toLong())
             tvCurrentTime.text = formatMs(0)
+            startProgressUpdater()
             
             Log.d(TAG, "Started playing segment: ${segment.filePath}")
             
@@ -265,6 +274,18 @@ class PlaybackActivity : AppCompatActivity() {
         val minutes = ms / 60000
         val seconds = (ms % 60000) / 1000
         return String.format("%d:%02d", minutes, seconds)
+    }
+    
+    private fun startProgressUpdater() {
+        progressJob?.cancel()
+        progressJob = lifecycleScope.launchWhenStarted {
+            while (isActive && isPlaying()) {
+                val pos = getCurrentPosition()
+                seekBar.progress = pos
+                tvCurrentTime.text = formatMs(pos.toLong())
+                delay(250)
+            }
+        }
     }
     
     companion object {
