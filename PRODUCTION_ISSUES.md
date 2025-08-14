@@ -57,164 +57,17 @@ This document lists all identified gaps, risks, and enhancements required to bri
 
 ### P1 — Core UX, Settings, and Permissions
 
-- **P1: Implement Settings screen**
-  - **Problem**: `openSettings()` is a stub.
-  - **Tasks**:
-    - [ ] Create `SettingsActivity` with controls for segment duration, retention, bitrate, sample rate, max storage, boot auto-start, notification visibility.
-    - [ ] Persist via `SettingsManager` and apply to service (hot-apply when feasible).
-  - **Acceptance**: Settings can be changed and take effect without app restart.
-  - **Refs**: `app/src/main/java/com/listen/app/ui/MainActivity.kt` (231–235), `SettingsManager.kt`.
-
-- **P1: Complete Playback UI and logic**
-  - **Problem**: Playback screen lacks binding and list; controls are non-functional.
-  - **Tasks**:
-    - [ ] Enable ViewBinding in `PlaybackActivity`.
-    - [ ] Implement a `RecyclerView` adapter to display segments from DB.
-    - [ ] Create `res/layout/item_segment.xml` for list rows (time, duration, size) and bind click to play.
-    - [ ] Wire play/pause/stop/seek; update labels and seek bar.
-  - **Acceptance**: User can select and play any segment; UI reflects playback state.
-  - **Refs**: `app/src/main/java/com/listen/app/ui/PlaybackActivity.kt`, `res/layout/activity_playback.xml`, `res/layout/item_segment.xml`. 
-
-- **P1: Provide microphone permission rationale dialog (custom UI)**
-  - **Problem**: TODO placeholder for rationale.
-  - **Tasks**:
-    - [ ] Show a modal explaining why `RECORD_AUDIO` is required, with links to privacy policy.
-    - [ ] Request permission after user acknowledgment.
-  - **Acceptance**: Users see rationale when required; permission flow is smooth.
-  - **Refs**: `MainActivity.kt` (139–150).
-
-- **P1: Battery optimization handling**
-  - **Problem**: Permission declared, but no flow to request exemption / educate users.
-  - **Tasks**:
-    - [ ] Detect Doze/battery optimization status and prompt for `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`.
-    - [ ] Add help UI explaining impact on background recording.
-  - **Acceptance**: Clear prompt and navigation to system settings; state reflected in UI.
-  - **Refs**: `AndroidManifest.xml` (permissions), `MainActivity.kt`.
-
-- **P1: Add missing UI/runtime dependencies**
-  - **Problem**: Layout uses `CardView` and `RecyclerView` without deps; Activities use `lifecycleScope` but `lifecycle-runtime-ktx` is not declared.
-  - **Tasks**:
-    - [ ] Add `androidx.cardview:cardview`.
-    - [ ] Add `androidx.recyclerview:recyclerview`.
-    - [ ] Add `androidx.lifecycle:lifecycle-runtime-ktx`.
-  - **Acceptance**: ViewBinding and `lifecycleScope` compile; app builds.
-  - **Refs**: `app/build.gradle`, `res/layout/*`, `MainActivity.kt`, `PlaybackActivity.kt`. 
-
-- **P1: Fix audio bitrate unit mismatch**
-  - **Problem**: `SettingsManager.audioBitrate` stores kbps (e.g., 32), but `AudioRecorderService.updateSettings` expects bps.
-  - **Tasks**:
-    - [ ] Multiply by 1000 when passing to recorder or change setting units to bps throughout.
-    - [ ] Audit and align `calculateStorageUsage()` with final units.
-  - **Acceptance**: MediaRecorder receives correct `setAudioEncodingBitRate` (e.g., 32000).
-  - **Refs**: `SettingsManager.kt`, `ListenForegroundService.updateAudioSettings()`.
-
-- **P1: Consider using MPEG_4 container instead of AAC_ADTS**
-  - **Problem**: `AAC_ADTS` may be less compatible across devices than `MPEG_4`.
-  - **Tasks**:
-    - [ ] Switch to `OutputFormat.MPEG_4` and `.m4a` extension; validate quality/size.
-  - **Acceptance**: Recording succeeds across target devices; playback works.
-  - **Refs**: `AudioRecorderService.kt` (41–49).
-
-- **P1: Accurate service status and recording indicator in Main screen**
-  - **Problem**: UI shows only a preference-backed state; `tv_recording_status` is never updated; no live timer; no actual service liveness check.
-  - **Tasks**:
-    - [ ] Bind to service or use a `LocalBroadcastManager`/`SharedFlow` to push recording state and elapsed time.
-    - [ ] Update `tv_recording_status` and start/stop button states accordingly.
-    - [ ] Handle service restarts and process death gracefully.
-  - **Acceptance**: Main screen reflects real recording status and elapsed time; no stale state after process restarts.
-  - **Refs**: `app/src/main/java/com/listen/app/ui/MainActivity.kt`, `res/layout/activity_main.xml`, `ListenForegroundService.kt`.
-
-- **P1: Boot auto-start safeguards for permission state**
-  - **Problem**: `ListenBootReceiver` starts the service after boot if enabled, even if microphone permission is revoked.
-  - **Tasks**:
-    - [ ] Check `RECORD_AUDIO` at boot before starting; if missing, delay start and notify user on next launch.
-    - [ ] Optionally schedule a reminder/notification prompting to open the app to re-grant permission.
-  - **Acceptance**: No failed starts at boot due to missing permission; clear guidance to the user.
-  - **Refs**: `app/src/main/java/com/listen/app/receiver/ListenBootReceiver.kt`, `AndroidManifest.xml`.
+- Resolved in code; will validate on device/emulator.
 
 ---
 
 ### P2 — Reliability, Storage, and Cleanup
 
-- **P2: Audio focus and playback attributes**
-  - **Problem**: `MediaPlayer` playback lacks audio focus handling; may conflict with other apps and notifications; missing `AudioAttributes`.
-  - **Tasks**:
-    - [ ] Request and manage audio focus during playback; abandon on stop.
-    - [ ] Set `AudioAttributes` on `MediaPlayer` for proper routing/ducking.
-  - **Acceptance**: Playback respects system audio policies; no conflicts with other audio apps.
-  - **Refs**: `PlaybackActivity.kt`.
-
-- **P2: Correct storage limit enforcement algorithm**
-  - **Problem**: `SegmentManagerService.enforceStorageLimits()` converts excess bytes to a count with `(excessBytes / 1024)` and fetches that many oldest rows, which is inefficient and incorrect.
-  - **Tasks**:
-    - [ ] Fetch oldest segments iteratively until cumulative file sizes free at least `excessBytes`.
-    - [ ] Do deletions in a transaction and handle partial failures robustly.
-  - **Acceptance**: Deletion targets the minimal number of segments and reliably frees required space.
-  - **Refs**: `app/src/main/java/com/listen/app/service/SegmentManagerService.kt` (96–115).
-
-- **P2: Tie background coroutine scope to lifecycle**
-  - **Problem**: `SegmentManagerService` owns a `CoroutineScope(Dispatchers.IO)` without a cancellable parent; potential leaks after service teardown.
-  - **Tasks**:
-    - [ ] Provide a `SupervisorJob` and expose `cancel()`; call from `ListenForegroundService.onDestroy`.
-    - [ ] Prefer structured concurrency where possible.
-  - **Acceptance**: No leaked coroutines; clean shutdown.
-  - **Refs**: `SegmentManagerService.kt`, `ListenForegroundService.kt`.
-
-- **P2: Unique segment filenames**
-  - **Problem**: Filenames are second-granularity; rapid rotations or retries can collide.
-  - **Tasks**:
-    - [ ] Include milliseconds (e.g., `yyyyMMdd_HHmmss_SSS`) or add a short random suffix.
-  - **Acceptance**: No collisions observed under stress tests.
-  - **Refs**: `app/src/main/java/com/listen/app/storage/StorageManager.kt` (24–28).
-
-- **P2: Respect or redefine `showNotification` setting**
-  - Resolved: Removed misleading setting; FGS always shows a notification.
-  - Refs: `SettingsManager.kt`.
-
-- **P2: Improve storage health and telemetry**
-  - Resolved: Added low-storage toast and segment count to Main screen; usage/available already displayed.
-  - Refs: `MainActivity.kt`. 
-
-- **P2: Room migrations plan**
-  - Resolved: Added v2 migration scaffold and enabled exportSchema for future tracking.
-  - Refs: `ListenDatabase.kt`. 
-
-- **P2: Remove unnecessary storage permissions**
-  - Resolved: Removed legacy `READ/WRITE_EXTERNAL_STORAGE` permissions; using app-private storage.
-  - Refs: `AndroidManifest.xml`. 
-
-- **P2: Cancel scheduled work when stopping service**
-  - **Problem**: Unique periodic work is enqueued but never canceled on stop.
-  - **Tasks**:
-    - [ ] Cancel work in `ListenForegroundService.stop()` or `onDestroy()`.
-  - **Acceptance**: No stale background tasks remain after stop.
-  - **Refs**: `ListenForegroundService.kt`.
-
-- **P2: Wake lock usage audit**
-  - **Problem**: `WAKE_LOCK` permission declared but not used.
-  - **Tasks**:
-    - [ ] Decide whether an explicit partial wake lock is required during rotation/stop-start to avoid gaps.
-    - [ ] If used, scope and release responsibly.
-  - **Acceptance**: No unnecessary wake locks; battery usage remains minimal.
-  - **Refs**: `AndroidManifest.xml`.
+- Resolved in code; will validate on device/emulator.
 
 ---
 
 ### P3 — Polish, DX, Tooling, and Compliance
-
-- **P3: Create missing ProGuard/R8 rules file**
-  - **Problem**: `proguard-rules.pro` referenced but missing.
-  - **Tasks**:
-    - [ ] Add an empty `proguard-rules.pro` with a basic template.
-  - **Acceptance**: Release build doesn’t error if minification is enabled in the future.
-  - **Refs**: `app/build.gradle` (24–25).
-
-- **P3: Unify user-visible strings**
-  - **Problem**: Some strings are hard-coded in code.
-  - **Tasks**:
-    - [ ] Move to `strings.xml` (e.g., toasts in `MainActivity` and `PlaybackActivity`).
-  - **Acceptance**: All user-visible text is localized via resources.
-  - **Refs**: `MainActivity.kt`, `PlaybackActivity.kt`, `res/values/strings.xml`.
 
 - **P3: Logging strategy for production**
   - **Problem**: Extensive `Log.d` across code; no build-type gating.
@@ -225,14 +78,12 @@ This document lists all identified gaps, risks, and enhancements required to bri
   - **Refs**: Multiple files.
 
 - **P3: CI/CD pipeline**
-  - **Tasks**:
-    - [ ] Add GitHub Actions to build, run unit tests and lint on PRs.
-    - [ ] Cache Gradle and setup Android SDK.
-  - **Acceptance**: PRs are validated automatically.
+  - Resolved: Added GitHub Actions workflow to build, test, and lint.
+  - Refs: `.github/workflows/android.yml`.
 
 - **P3: Code quality & linting**
   - **Tasks**:
-    - [ ] Enable Android Lint, Detekt/Ktlint, and a formatting task.
+    - [ ] Enable Detekt/Ktlint and a formatting task.
   - **Acceptance**: Failing lint breaks CI; clear reports in PRs.
 
 - **P3: Documentation updates**
