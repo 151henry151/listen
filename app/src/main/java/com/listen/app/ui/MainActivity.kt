@@ -193,6 +193,7 @@ class MainActivity : AppCompatActivity() {
                 // Update storage information
                 val storageStats = storageManager.getFormattedStorageUsage()
                 val availableStorage = storageManager.getFormattedAvailableStorage()
+                val segmentCount = database.segmentDao().getSegmentCount()
                 
                 // Update UI elements
                 binding.tvServiceStatus.text = if (isServiceEnabled) {
@@ -209,6 +210,7 @@ class MainActivity : AppCompatActivity() {
                 
                 binding.tvStorageUsage.text = storageStats
                 binding.tvAvailableStorage.text = "Available: $availableStorage"
+                binding.tvSegmentsCount.text = "Segments: $segmentCount"
                 
                 maybeWarnLowStorage()
                 

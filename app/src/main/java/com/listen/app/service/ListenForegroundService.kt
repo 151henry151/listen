@@ -24,6 +24,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import android.os.PowerManager
 
 /**
  * Main foreground service that orchestrates background audio recording
@@ -46,6 +47,8 @@ class ListenForegroundService : Service() {
     // Jobs
     private var rotationJobActive = false
     private var statusBroadcastJobActive = false
+    
+    private var wakeLock: PowerManager.WakeLock? = null
     
     companion object {
         private const val TAG = "ListenForegroundService"
@@ -146,6 +149,7 @@ class ListenForegroundService : Service() {
         stopRecording()
         cancelScheduledSegmentRotationWork()
         segmentManager.cancel()
+        releaseWakeLock()
         isServiceRunning = false
         serviceScope.cancel()
         super.onDestroy()
@@ -256,10 +260,13 @@ class ListenForegroundService : Service() {
                 val segmentDuration = settings.segmentDurationSeconds.toLong().coerceAtLeast(1L)
                 delay(segmentDuration * 1000L)
                 try {
+                    acquireWakeLock(5_000L)
                     audioRecorder.rotateSegment()
                     broadcastStatus()
                 } catch (e: Exception) {
                     Log.e(TAG, "Error rotating segment", e)
+                } finally {
+                    releaseWakeLock()
                 }
             }
         }
@@ -360,4 +367,27 @@ class ListenForegroundService : Service() {
     
     /** Emergency cleanup */
     fun emergencyCleanup(requiredBytes: Long) = segmentManager.emergencyCleanup(requiredBytes)
+
+    private fun acquireWakeLock(timeoutMs: Long) {
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (wakeLock == null) {
+                wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Listen:Recorder")
+                wakeLock?.setReferenceCounted(false)
+            }
+            wakeLock?.acquire(timeoutMs)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to acquire wake lock", e)
+        }
+    }
+    
+    private fun releaseWakeLock() {
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to release wake lock", e)
+        }
+    }
 } 
