@@ -23,6 +23,8 @@ class SettingsActivity : AppCompatActivity() {
 		val etSampleRate: EditText = findViewById(R.id.et_sample_rate)
 		val etMaxStorage: EditText = findViewById(R.id.et_max_storage)
 		val swAutoStart: Switch = findViewById(R.id.sw_auto_start)
+		val swPowerSaving: Switch = findViewById(R.id.sw_power_saving)
+		val swAdaptive: Switch = findViewById(R.id.sw_adaptive)
 		val btnSave: Button = findViewById(R.id.btn_save_settings)
 		
 		// Pre-fill current values
@@ -32,6 +34,8 @@ class SettingsActivity : AppCompatActivity() {
 		etSampleRate.setText(settings.audioSampleRate.toString())
 		etMaxStorage.setText(settings.maxStorageMB.toString())
 		swAutoStart.isChecked = settings.autoStartOnBoot
+		swPowerSaving.isChecked = settings.powerSavingModeEnabled
+		swAdaptive.isChecked = settings.adaptivePerformanceEnabled
 		
 		btnSave.setOnClickListener {
 			settings.segmentDurationSeconds = etSegmentDuration.text.toString().toIntOrNull() ?: settings.segmentDurationSeconds
@@ -39,7 +43,9 @@ class SettingsActivity : AppCompatActivity() {
 			settings.audioBitrate = etBitrate.text.toString().toIntOrNull() ?: settings.audioBitrate
 			settings.audioSampleRate = etSampleRate.text.toString().toIntOrNull() ?: settings.audioSampleRate
 			settings.maxStorageMB = etMaxStorage.text.toString().toIntOrNull() ?: settings.maxStorageMB
-			settings.autoStartOnBoot = swAutoStart.isChecked
+			swAutoStart.isChecked.also { settings.autoStartOnBoot = it }
+			swPowerSaving.isChecked.also { settings.powerSavingModeEnabled = it }
+			swAdaptive.isChecked.also { settings.adaptivePerformanceEnabled = it }
 			
 			// Notify running service to apply new settings
 			ListenForegroundService.applyUpdatedSettings(this)

@@ -26,6 +26,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import android.os.PowerManager
 import com.listen.app.util.AppLog
+import android.provider.Settings as AndroidSettings
+import android.net.Uri
+import com.listen.app.perf.PerformanceMonitor
 
 /**
  * Main foreground service that orchestrates background audio recording
@@ -38,6 +41,7 @@ class ListenForegroundService : Service() {
     private lateinit var audioRecorder: AudioRecorderService
     private lateinit var segmentManager: SegmentManagerService
     private lateinit var workManager: WorkManager
+    private var performanceMonitor: PerformanceMonitor? = null
     
     private var isServiceRunning = false
     
@@ -104,10 +108,13 @@ class ListenForegroundService : Service() {
         audioRecorder = AudioRecorderService(this, storageManager)
         segmentManager = SegmentManagerService(this, database, storageManager, settings)
         workManager = WorkManager.getInstance(this)
+        performanceMonitor = PerformanceMonitor(this)
         
         // Set up audio recorder callback
         audioRecorder.onSegmentCompleted = { file, startTime, duration ->
             segmentManager.addSegment(file, startTime, duration)
+            // Record rotation performance
+            performanceMonitor?.recordSegmentRotation(duration)
             // Update notification content subtly to show recent rotation
             updateNotification("Recording... (rotated)")
         }
@@ -122,16 +129,20 @@ class ListenForegroundService : Service() {
         if (intent?.action == ACTION_UPDATE_SETTINGS) {
             AppLog.d(TAG, "Applying updated settings to recorder")
             updateAudioSettings()
+            applyAdaptiveBehavior()
             return START_STICKY
         }
         
         if (!isServiceRunning) {
             startForegroundService()
             ensureWakeLock()
+            requestIgnoreBatteryOptimizations()
+            applyAdaptiveBehavior()
             val started = startRecording()
             if (started) {
                 startInServiceRotationScheduler()
                 startStatusBroadcasts()
+                performanceMonitor?.start(serviceScope)
             } else {
                 updateNotification("Recording failed. Tap to retry.")
             }
@@ -152,6 +163,7 @@ class ListenForegroundService : Service() {
         cancelScheduledSegmentRotationWork()
         segmentManager.cancel()
         releaseWakeLock()
+        performanceMonitor?.stop()
         isServiceRunning = false
         serviceScope.cancel()
         super.onDestroy()
@@ -262,7 +274,10 @@ class ListenForegroundService : Service() {
                 val segmentDuration = settings.segmentDurationSeconds.toLong().coerceAtLeast(1L)
                 delay(segmentDuration * 1000L)
                 try {
+                    val before = System.currentTimeMillis()
                     audioRecorder.rotateSegment()
+                    val after = System.currentTimeMillis()
+                    performanceMonitor?.recordSegmentRotation(after - before)
                     broadcastStatus()
                 } catch (e: Exception) {
                     AppLog.e(TAG, "Error rotating segment", e)
@@ -309,7 +324,7 @@ class ListenForegroundService : Service() {
         
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
-            .setRequiresBatteryNotLow(false)
+            .setRequiresBatteryNotLow(settings.powerSavingModeEnabled)
             .build()
         
         val segmentWork = PeriodicWorkRequestBuilder<SegmentRotationWorker>(
@@ -346,11 +361,40 @@ class ListenForegroundService : Service() {
     
     /** Update audio settings */
     fun updateAudioSettings() {
+        val bitrateKbps = if (settings.powerSavingModeEnabled) {
+            (settings.audioBitrate / 2).coerceAtLeast(16)
+        } else settings.audioBitrate
+        val sampleRateHz = if (settings.powerSavingModeEnabled) {
+            when {
+                settings.audioSampleRate >= 44100 -> 22050
+                settings.audioSampleRate >= 32000 -> 16000
+                else -> settings.audioSampleRate
+            }
+        } else settings.audioSampleRate
         audioRecorder.updateSettings(
-            settings.audioBitrate * 1000, // convert kbps to bps
-            settings.audioSampleRate,
+            bitrateKbps * 1000, // convert kbps to bps
+            sampleRateHz,
             1 // Mono channel
         )
+    }
+    
+    /** Apply adaptive behavior based on device state and settings */
+    private fun applyAdaptiveBehavior() {
+        if (!settings.adaptivePerformanceEnabled) return
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            val isPowerSave = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) pm.isPowerSaveMode else false
+            val isInteractive = pm.isInteractive
+            // If device is in power save or not interactive, reduce segment churn and bitrate
+            if (isPowerSave || !isInteractive || settings.powerSavingModeEnabled) {
+                // Increase segment duration to reduce IO churn
+                val current = settings.segmentDurationSeconds
+                if (current < 120) {
+                    settings.segmentDurationSeconds = 120
+                }
+            }
+        } catch (_: Exception) { }
+        updateAudioSettings()
     }
     
     /** Perform manual segment rotation */
@@ -389,6 +433,24 @@ class ListenForegroundService : Service() {
             }
         } catch (e: Exception) {
             AppLog.w(TAG, "Failed to release wake lock", e)
+        }
+    }
+
+    private fun requestIgnoreBatteryOptimizations() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+                val pkg = packageName
+                val ignoring = pm.isIgnoringBatteryOptimizations(pkg)
+                if (!ignoring) {
+                    val intent = Intent(AndroidSettings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                    intent.data = Uri.parse("package:$pkg")
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(intent)
+                }
+            }
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Battery optimization request failed", e)
         }
     }
 } 

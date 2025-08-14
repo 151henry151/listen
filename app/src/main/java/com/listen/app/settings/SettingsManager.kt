@@ -52,6 +52,16 @@ class SettingsManager(context: Context) {
     var lastServiceStartTime: Long
         get() = prefs.getLong(KEY_LAST_SERVICE_START, 0)
         set(value) = prefs.edit { putLong(KEY_LAST_SERVICE_START, value) }
+
+    /** Whether power-saving mode is enabled by the user */
+    var powerSavingModeEnabled: Boolean
+        get() = prefs.getBoolean(KEY_POWER_SAVING_MODE, false)
+        set(value) = prefs.edit { putBoolean(KEY_POWER_SAVING_MODE, value) }
+
+    /** Whether adaptive performance behaviors are enabled */
+    var adaptivePerformanceEnabled: Boolean
+        get() = prefs.getBoolean(KEY_ADAPTIVE_PERFORMANCE, true)
+        set(value) = prefs.edit { putBoolean(KEY_ADAPTIVE_PERFORMANCE, value) }
     
     /** Calculate total storage usage for current settings */
     fun calculateStorageUsage(): Long {
@@ -92,6 +102,8 @@ class SettingsManager(context: Context) {
         private const val KEY_MAX_STORAGE = "max_storage"
         private const val KEY_AUTO_START_BOOT = "auto_start_boot"
         private const val KEY_LAST_SERVICE_START = "last_service_start"
+        private const val KEY_POWER_SAVING_MODE = "power_saving_mode"
+        private const val KEY_ADAPTIVE_PERFORMANCE = "adaptive_performance"
         
         // Default values
         const val DEFAULT_SEGMENT_DURATION = 60 // 1 minute

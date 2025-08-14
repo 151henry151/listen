@@ -50,7 +50,12 @@ class AudioRecorderService(
                 segmentStartTime = System.currentTimeMillis()
                 
                 mediaRecorder = MediaRecorder().apply {
-                    setAudioSource(MediaRecorder.AudioSource.MIC)
+                    // Prefer voice-optimized source when possible for power/clarity
+                    try {
+                        setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
+                    } catch (_: Exception) {
+                        setAudioSource(MediaRecorder.AudioSource.MIC)
+                    }
                     setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                     setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                     setAudioSamplingRate(audioSampleRate)
@@ -80,6 +85,17 @@ class AudioRecorderService(
                         // ignore
                     }
                     delayMs = (delayMs * 2).coerceAtMost(2000L)
+                    // Try a gentler profile next tries
+                    if (attempt == 1) {
+                        // Reduce bitrate/sample rate slightly to increase chance of start
+                        audioBitrate = (audioBitrate * 3) / 4
+                        audioSampleRate = when {
+                            audioSampleRate >= 44100 -> 22050
+                            audioSampleRate >= 32000 -> 16000
+                            audioSampleRate >= 22050 -> 16000
+                            else -> audioSampleRate
+                        }
+                    }
                 }
             }
         }
