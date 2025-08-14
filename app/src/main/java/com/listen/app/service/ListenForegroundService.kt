@@ -14,6 +14,7 @@ import com.listen.app.data.ListenDatabase
 import com.listen.app.settings.SettingsManager
 import com.listen.app.storage.StorageManager
 import com.listen.app.ui.MainActivity
+import com.listen.app.worker.SegmentRotationWorker
 import java.io.File
 import java.util.concurrent.TimeUnit
 

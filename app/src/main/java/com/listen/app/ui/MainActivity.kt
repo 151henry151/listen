@@ -15,6 +15,7 @@ import com.listen.app.data.ListenDatabase
 import com.listen.app.service.ListenForegroundService
 import com.listen.app.settings.SettingsManager
 import com.listen.app.storage.StorageManager
+import com.listen.app.databinding.ActivityMainBinding
 import kotlinx.coroutines.launch
 
 /**
@@ -22,6 +23,7 @@ import kotlinx.coroutines.launch
  */
 class MainActivity : AppCompatActivity() {
     
+    private lateinit var binding: ActivityMainBinding
     private lateinit var settings: SettingsManager
     private lateinit var database: ListenDatabase
     private lateinit var storageManager: StorageManager
@@ -31,16 +33,28 @@ class MainActivity : AppCompatActivity() {
     ) { isGranted ->
         if (isGranted) {
             Log.d(TAG, "Microphone permission granted")
-            checkAndStartService()
+            requestNotificationPermission()
         } else {
             Log.w(TAG, "Microphone permission denied")
             Toast.makeText(this, "Microphone permission required for recording", Toast.LENGTH_LONG).show()
         }
     }
     
+    private val requestNotificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Log.d(TAG, "Notification permission granted")
+        } else {
+            Log.w(TAG, "Notification permission denied")
+        }
+        checkAndStartService()
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
         
         // Initialize components
         settings = SettingsManager(this)
@@ -61,8 +75,23 @@ class MainActivity : AppCompatActivity() {
     
     /** Set up the user interface */
     private fun setupUI() {
-        // TODO: Implement UI setup with ViewBinding
-        // For now, we'll just log that the activity is set up
+        // Set up button click listeners
+        binding.btnStartStop.setOnClickListener {
+            if (settings.isServiceEnabled) {
+                stopService()
+            } else {
+                startService()
+            }
+        }
+        
+        binding.btnPlayback.setOnClickListener {
+            openPlayback()
+        }
+        
+        binding.btnSettings.setOnClickListener {
+            openSettings()
+        }
+        
         Log.d(TAG, "MainActivity UI setup completed")
     }
     
@@ -74,7 +103,7 @@ class MainActivity : AppCompatActivity() {
                 Manifest.permission.RECORD_AUDIO
             ) == PackageManager.PERMISSION_GRANTED -> {
                 Log.d(TAG, "Microphone permission already granted")
-                checkAndStartService()
+                requestNotificationPermission()
             }
             shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) -> {
                 // Show permission rationale
@@ -84,6 +113,26 @@ class MainActivity : AppCompatActivity() {
                 // Request permission
                 requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
+        }
+    }
+    
+    /** Request notification permission for Android 13+ */
+    private fun requestNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    Log.d(TAG, "Notification permission already granted")
+                    checkAndStartService()
+                }
+                else -> {
+                    requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        } else {
+            checkAndStartService()
         }
     }
     
@@ -121,7 +170,22 @@ class MainActivity : AppCompatActivity() {
                 val storageStats = storageManager.getFormattedStorageUsage()
                 val availableStorage = storageManager.getFormattedAvailableStorage()
                 
-                // TODO: Update UI elements with this information
+                // Update UI elements
+                binding.tvServiceStatus.text = if (isServiceEnabled) {
+                    getString(R.string.status_service_running)
+                } else {
+                    getString(R.string.status_service_stopped)
+                }
+                
+                binding.btnStartStop.text = if (isServiceEnabled) {
+                    getString(R.string.btn_stop_recording)
+                } else {
+                    getString(R.string.btn_start_recording)
+                }
+                
+                binding.tvStorageUsage.text = storageStats
+                binding.tvAvailableStorage.text = "Available: $availableStorage"
+                
                 Log.d(TAG, "Service enabled: $isServiceEnabled")
                 Log.d(TAG, "Storage usage: $storageStats")
                 Log.d(TAG, "Available storage: $availableStorage")

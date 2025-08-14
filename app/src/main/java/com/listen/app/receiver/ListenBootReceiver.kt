@@ -19,7 +19,6 @@ class ListenBootReceiver : BroadcastReceiver() {
         
         when (intent.action) {
             Intent.ACTION_BOOT_COMPLETED,
-            Intent.ACTION_QUICKBOOT_POWERON,
             "android.intent.action.QUICKBOOT_POWERON" -> {
                 
                 val settings = SettingsManager(context)

@@ -60,7 +60,7 @@ class SettingsManager(context: Context) {
     
     /** Calculate total storage usage for current settings */
     fun calculateStorageUsage(): Long {
-        val segmentSizeBytes = (audioBitrate * 1000 * segmentDurationSeconds) / 8
+        val segmentSizeBytes = (audioBitrate.toLong() * 1000 * segmentDurationSeconds) / 8
         val segmentsCount = (retentionPeriodMinutes * 60) / segmentDurationSeconds
         return segmentSizeBytes * segmentsCount
     }
