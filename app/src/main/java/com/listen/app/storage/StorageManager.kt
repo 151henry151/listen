@@ -22,8 +22,8 @@ class StorageManager(private val context: Context) {
     
     /** Create a new segment file with timestamp-based naming */
     fun createSegmentFile(timestamp: Long): File {
-        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
-        val fileName = "segment_${dateFormat.format(Date(timestamp))}.aac"
+        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US)
+        val fileName = "segment_${dateFormat.format(Date(timestamp))}.m4a"
         return File(segmentsDir, fileName)
     }
     

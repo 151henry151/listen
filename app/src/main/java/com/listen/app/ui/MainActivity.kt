@@ -17,6 +17,9 @@ import com.listen.app.settings.SettingsManager
 import com.listen.app.storage.StorageManager
 import com.listen.app.databinding.ActivityMainBinding
 import kotlinx.coroutines.launch
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 
 /**
  * Main activity with dashboard and service controls
@@ -51,6 +54,16 @@ class MainActivity : AppCompatActivity() {
         checkAndStartService()
     }
     
+    private val statusReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ListenForegroundService.ACTION_RECORDING_STATUS) {
+                val isRecording = intent.getBooleanExtra(ListenForegroundService.EXTRA_IS_RECORDING, false)
+                val elapsed = intent.getLongExtra(ListenForegroundService.EXTRA_ELAPSED_MS, 0L)
+                updateRecordingStatus(isRecording, elapsed)
+            }
+        }
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -70,7 +83,15 @@ class MainActivity : AppCompatActivity() {
     
     override fun onResume() {
         super.onResume()
+        registerReceiver(statusReceiver, IntentFilter(ListenForegroundService.ACTION_RECORDING_STATUS))
         updateUI()
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        try {
+            unregisterReceiver(statusReceiver)
+        } catch (_: Exception) {}
     }
     
     /** Set up the user interface */
@@ -196,6 +217,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
+    private fun updateRecordingStatus(isRecording: Boolean, elapsedMs: Long) {
+        val minutes = elapsedMs / 60000
+        val seconds = (elapsedMs % 60000) / 1000
+        binding.tvRecordingStatus.text = if (isRecording) {
+            getString(R.string.status_recording) + "  ${minutes}:${String.format("%02d", seconds)}"
+        } else {
+            getString(R.string.status_stopped)
+        }
+        // Keep start/stop label in sync with serviceEnabled toggle
+        binding.btnStartStop.text = if (settings.isServiceEnabled) {
+            getString(R.string.btn_stop_recording)
+        } else {
+            getString(R.string.btn_start_recording)
+        }
+    }
+    
     /** Start the recording service */
     fun startService() {
         if (ContextCompat.checkSelfPermission(
@@ -230,8 +267,7 @@ class MainActivity : AppCompatActivity() {
     
     /** Open settings activity */
     fun openSettings() {
-        // TODO: Implement settings activity
-        Toast.makeText(this, "Settings coming soon", Toast.LENGTH_SHORT).show()
+        startActivity(Intent(this, SettingsActivity::class.java))
     }
     
     companion object {

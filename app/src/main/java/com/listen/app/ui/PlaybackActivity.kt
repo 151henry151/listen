@@ -11,6 +11,10 @@ import com.listen.app.data.Segment
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.io.File
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.content.Context
 
 /**
  * Activity for playing back recorded audio segments
@@ -21,12 +25,16 @@ class PlaybackActivity : AppCompatActivity() {
     private var mediaPlayer: MediaPlayer? = null
     private var currentSegment: Segment? = null
     
+    private var audioManager: AudioManager? = null
+    private var audioFocusRequest: AudioFocusRequest? = null
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_playback)
         
         // Initialize database
         database = ListenDatabase.getDatabase(this)
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         
         // Set up UI
         setupUI()
@@ -38,6 +46,7 @@ class PlaybackActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         stopPlayback()
+        abandonAudioFocus()
     }
     
     /** Set up the user interface */
@@ -78,7 +87,17 @@ class PlaybackActivity : AppCompatActivity() {
                 return
             }
             
+            if (!requestAudioFocus()) {
+                Log.w(TAG, "Audio focus not granted; continuing cautiously")
+            }
+            
             mediaPlayer = MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
                 setDataSource(segment.filePath)
                 prepare()
                 start()
@@ -109,6 +128,9 @@ class PlaybackActivity : AppCompatActivity() {
     fun resumePlayback() {
         mediaPlayer?.let { player ->
             if (!player.isPlaying) {
+                if (!requestAudioFocus()) {
+                    Log.w(TAG, "Audio focus not granted; continuing cautiously")
+                }
                 player.start()
                 Log.d(TAG, "Playback resumed")
                 // TODO: Update UI to show playing state
@@ -126,8 +148,40 @@ class PlaybackActivity : AppCompatActivity() {
         }
         mediaPlayer = null
         currentSegment = null
+        abandonAudioFocus()
         Log.d(TAG, "Playback stopped")
         // TODO: Update UI to show stopped state
+    }
+    
+    private fun requestAudioFocus(): Boolean {
+        val manager = audioManager ?: return false
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                .setOnAudioFocusChangeListener { /* no-op basic handling */ }
+                .build()
+            audioFocusRequest = req
+            val res = manager.requestAudioFocus(req)
+            res == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        } else {
+            val res = manager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+            res == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        }
+    }
+    
+    private fun abandonAudioFocus() {
+        val manager = audioManager ?: return
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { manager.abandonAudioFocusRequest(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            manager.abandonAudioFocus(null)
+        }
     }
     
     /** Get current playback position */

@@ -29,39 +29,61 @@ class AudioRecorderService(
     
     /** Start recording with current settings */
     fun startRecording(): Boolean {
-        return try {
-            if (isRecording) {
-                Log.w(TAG, "Already recording, stopping current session first")
-                stopRecording()
-            }
-            
-            val segmentFile = storageManager.createSegmentFile(System.currentTimeMillis())
-            segmentStartTime = System.currentTimeMillis()
-            
-            mediaRecorder = MediaRecorder().apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioSamplingRate(audioSampleRate)
-                setAudioChannels(audioChannels)
-                setAudioEncodingBitRate(audioBitrate)
-                setOutputFile(segmentFile.absolutePath)
+        return tryStartRecordingWithRetry()
+    }
+    
+    private fun tryStartRecordingWithRetry(maxAttempts: Int = 3): Boolean {
+        var attempt = 0
+        var delayMs = 250L
+        var lastError: Exception? = null
+        
+        while (attempt < maxAttempts) {
+            attempt++
+            try {
+                if (isRecording) {
+                    Log.w(TAG, "Already recording, stopping current session first")
+                    stopRecording()
+                }
                 
-                prepare()
-                start()
+                val segmentFile = storageManager.createSegmentFile(System.currentTimeMillis())
+                segmentStartTime = System.currentTimeMillis()
+                
+                mediaRecorder = MediaRecorder().apply {
+                    setAudioSource(MediaRecorder.AudioSource.MIC)
+                    setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                    setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                    setAudioSamplingRate(audioSampleRate)
+                    setAudioChannels(audioChannels)
+                    setAudioEncodingBitRate(audioBitrate)
+                    setOutputFile(segmentFile.absolutePath)
+                    
+                    prepare()
+                    start()
+                }
+                
+                currentSegmentFile = segmentFile
+                isRecording = true
+                
+                Log.d(TAG, "Started recording to: ${segmentFile.absolutePath} (attempt=$attempt)")
+                return true
+                
+            } catch (e: Exception) {
+                lastError = e
+                Log.e(TAG, "Failed to start recording (attempt=$attempt/$maxAttempts)", e)
+                cleanup()
+                
+                if (attempt < maxAttempts) {
+                    try {
+                        Thread.sleep(delayMs)
+                    } catch (_: InterruptedException) {
+                        // ignore
+                    }
+                    delayMs = (delayMs * 2).coerceAtMost(2000L)
+                }
             }
-            
-            currentSegmentFile = segmentFile
-            isRecording = true
-            
-            Log.d(TAG, "Started recording to: ${segmentFile.absolutePath}")
-            true
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to start recording", e)
-            cleanup()
-            false
         }
+        Log.e(TAG, "All attempts to start recording failed", lastError)
+        return false
     }
     
     /** Stop current recording and return the completed file */

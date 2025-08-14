@@ -17,6 +17,13 @@ import com.listen.app.ui.MainActivity
 import com.listen.app.worker.SegmentRotationWorker
 import java.io.File
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 /**
  * Main foreground service that orchestrates background audio recording
@@ -32,10 +39,26 @@ class ListenForegroundService : Service() {
     
     private var isServiceRunning = false
     
+    // Service-scoped coroutine context for timers/broadcasts
+    private val serviceJob = SupervisorJob()
+    private val serviceScope = CoroutineScope(Dispatchers.Default + serviceJob)
+    
+    // Jobs
+    private var rotationJobActive = false
+    private var statusBroadcastJobActive = false
+    
     companion object {
         private const val TAG = "ListenForegroundService"
         private const val NOTIFICATION_ID = 1001
         private const val CHANNEL_ID = "listen_recording_channel"
+        
+        // Broadcasts
+        const val ACTION_RECORDING_STATUS = "com.listen.app.ACTION_RECORDING_STATUS"
+        const val EXTRA_IS_RECORDING = "extra_is_recording"
+        const val EXTRA_ELAPSED_MS = "extra_elapsed_ms"
+        
+        // Commands
+        const val ACTION_UPDATE_SETTINGS = "com.listen.app.ACTION_UPDATE_SETTINGS"
         
         /** Start the service */
         fun start(context: Context) {
@@ -51,6 +74,18 @@ class ListenForegroundService : Service() {
         fun stop(context: Context) {
             val intent = Intent(context, ListenForegroundService::class.java)
             context.stopService(intent)
+        }
+        
+        /** Apply updated settings while service is running */
+        fun applyUpdatedSettings(context: Context) {
+            val intent = Intent(context, ListenForegroundService::class.java).apply {
+                action = ACTION_UPDATE_SETTINGS
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
         }
     }
     
@@ -69,6 +104,8 @@ class ListenForegroundService : Service() {
         // Set up audio recorder callback
         audioRecorder.onSegmentCompleted = { file, startTime, duration ->
             segmentManager.addSegment(file, startTime, duration)
+            // Update notification content subtly to show recent rotation
+            updateNotification("Recording... (rotated)")
         }
         
         // Create notification channel
@@ -78,10 +115,23 @@ class ListenForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "Service started")
         
+        if (intent?.action == ACTION_UPDATE_SETTINGS) {
+            Log.d(TAG, "Applying updated settings to recorder")
+            updateAudioSettings()
+            return START_STICKY
+        }
+        
         if (!isServiceRunning) {
             startForegroundService()
-            startRecording()
-            scheduleSegmentRotation()
+            val started = startRecording()
+            if (started) {
+                startInServiceRotationScheduler()
+                startStatusBroadcasts()
+            } else {
+                updateNotification("Recording failed. Tap to retry.")
+            }
+            // Cancel any legacy scheduled work to avoid duplicates
+            cancelScheduledSegmentRotationWork()
             settings.lastServiceStartTime = System.currentTimeMillis()
         }
         
@@ -91,8 +141,13 @@ class ListenForegroundService : Service() {
     
     override fun onDestroy() {
         Log.d(TAG, "Service destroyed")
+        stopStatusBroadcasts()
+        stopInServiceRotationScheduler()
         stopRecording()
+        cancelScheduledSegmentRotationWork()
+        segmentManager.cancel()
         isServiceRunning = false
+        serviceScope.cancel()
         super.onDestroy()
     }
     
@@ -100,7 +155,11 @@ class ListenForegroundService : Service() {
         Log.d(TAG, "App removed from recent tasks, restarting service")
         // Restart service if app is removed from recent tasks
         val restartServiceIntent = Intent(this, ListenForegroundService::class.java)
-        startService(restartServiceIntent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(restartServiceIntent)
+        } else {
+            startService(restartServiceIntent)
+        }
     }
     
     override fun onBind(intent: Intent?): IBinder? = null
@@ -125,8 +184,8 @@ class ListenForegroundService : Service() {
         )
         
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Listen - Recording")
-            .setContentText("Recording audio in background")
+            .setContentTitle(getString(R.string.notification_title))
+            .setContentText(getString(R.string.notification_text))
             .setSmallIcon(R.drawable.ic_mic)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -134,15 +193,36 @@ class ListenForegroundService : Service() {
             .build()
     }
     
+    /** Update the existing foreground notification text */
+    private fun updateNotification(contentText: String) {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(getString(R.string.notification_title))
+            .setContentText(contentText)
+            .setSmallIcon(R.drawable.ic_mic)
+            .setContentIntent(pendingIntent)
+            .setOngoing(true)
+            .setSilent(true)
+            .build()
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.notify(NOTIFICATION_ID, notification)
+    }
+    
     /** Create notification channel for Android O+ */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Listen Recording",
+                getString(R.string.notification_channel_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Background audio recording service"
+                description = getString(R.string.notification_channel_description)
                 setShowBadge(false)
                 enableLights(false)
                 enableVibration(false)
@@ -154,21 +234,70 @@ class ListenForegroundService : Service() {
     }
     
     /** Start audio recording */
-    private fun startRecording() {
-        if (audioRecorder.startRecording()) {
-            Log.d(TAG, "Audio recording started")
-        } else {
-            Log.e(TAG, "Failed to start audio recording")
-        }
+    private fun startRecording(): Boolean {
+        val success = audioRecorder.startRecording()
+        broadcastStatus()
+        return success
     }
     
     /** Stop audio recording */
     private fun stopRecording() {
         audioRecorder.stopRecording()
+        broadcastStatus()
         Log.d(TAG, "Audio recording stopped")
     }
     
-    /** Schedule periodic segment rotation using WorkManager */
+    /** In-service rotation scheduler to replace WorkManager short-period scheduling */
+    private fun startInServiceRotationScheduler() {
+        if (rotationJobActive) return
+        rotationJobActive = true
+        serviceScope.launch {
+            while (isActive && isServiceRunning) {
+                val segmentDuration = settings.segmentDurationSeconds.toLong().coerceAtLeast(1L)
+                delay(segmentDuration * 1000L)
+                try {
+                    audioRecorder.rotateSegment()
+                    broadcastStatus()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error rotating segment", e)
+                }
+            }
+        }
+        Log.d(TAG, "Started in-service rotation scheduler")
+    }
+    
+    private fun stopInServiceRotationScheduler() {
+        if (!rotationJobActive) return
+        serviceJob.children.forEach { child -> child.cancel() }
+        rotationJobActive = false
+        Log.d(TAG, "Stopped in-service rotation scheduler")
+    }
+    
+    /** Periodically broadcast recording status to UI */
+    private fun startStatusBroadcasts() {
+        if (statusBroadcastJobActive) return
+        statusBroadcastJobActive = true
+        serviceScope.launch {
+            while (isActive && isServiceRunning) {
+                broadcastStatus()
+                delay(1000L)
+            }
+        }
+    }
+    
+    private fun stopStatusBroadcasts() {
+        statusBroadcastJobActive = false
+    }
+    
+    private fun broadcastStatus() {
+        val intent = Intent(ACTION_RECORDING_STATUS).apply {
+            putExtra(EXTRA_IS_RECORDING, audioRecorder.isRecording())
+            putExtra(EXTRA_ELAPSED_MS, audioRecorder.getCurrentRecordingDuration())
+        }
+        sendBroadcast(intent)
+    }
+    
+    /** Schedule periodic segment rotation using WorkManager (legacy, not used for <15 min) */
     private fun scheduleSegmentRotation() {
         val segmentDuration = settings.segmentDurationSeconds.toLong()
         
@@ -192,6 +321,14 @@ class ListenForegroundService : Service() {
         Log.d(TAG, "Scheduled segment rotation every $segmentDuration seconds")
     }
     
+    private fun cancelScheduledSegmentRotationWork() {
+        try {
+            workManager.cancelUniqueWork("segment_rotation")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to cancel scheduled segment rotation work", e)
+        }
+    }
+    
     /** Get current recording status */
     fun isRecording(): Boolean = audioRecorder.isRecording()
     
@@ -204,7 +341,7 @@ class ListenForegroundService : Service() {
     /** Update audio settings */
     fun updateAudioSettings() {
         audioRecorder.updateSettings(
-            settings.audioBitrate,
+            settings.audioBitrate * 1000, // convert kbps to bps
             settings.audioSampleRate,
             1 // Mono channel
         )

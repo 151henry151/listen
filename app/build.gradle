@@ -65,6 +65,13 @@ dependencies {
     // Coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     
+    // UI widgets used in layouts
+    implementation 'androidx.cardview:cardview:1.0.0'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+
+    // Lifecycle runtime for lifecycleScope in Activities
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+    
     // Testing
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'

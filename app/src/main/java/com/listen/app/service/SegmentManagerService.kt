@@ -8,6 +8,8 @@ import com.listen.app.settings.SettingsManager
 import com.listen.app.storage.StorageManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -21,8 +23,14 @@ class SegmentManagerService(
     private val settings: SettingsManager
 ) {
     
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val job = SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.IO + job)
     private val segmentDao = database.segmentDao()
+    
+    /** Allow owner to cancel background work */
+    fun cancel() {
+        scope.cancel()
+    }
     
     /** Add a new completed segment to the database */
     fun addSegment(file: File, startTime: Long, duration: Long) {
@@ -98,17 +106,22 @@ class SegmentManagerService(
         val currentUsage = segmentDao.getTotalStorageUsage() ?: 0L
         
         if (currentUsage > maxStorageBytes) {
-            val excessBytes = currentUsage - maxStorageBytes
-            val segmentsToDelete = segmentDao.getOldestSegments(
-                (excessBytes / 1024).toInt() + 1 // Add buffer
-            )
+            var excessBytes = currentUsage - maxStorageBytes
+            Log.w(TAG, "Storage limit exceeded by ${excessBytes} bytes. Beginning targeted cleanup...")
             
-            Log.w(TAG, "Storage limit exceeded. Deleting ${segmentsToDelete.size} segments to free ${excessBytes} bytes")
-            
-            segmentsToDelete.forEach { segment ->
-                if (storageManager.deleteFile(segment.filePath)) {
-                    segmentDao.deleteSegment(segment)
-                    Log.d(TAG, "Deleted segment for storage limit: ${segment.filePath}")
+            // Iteratively delete oldest segments until enough space is freed
+            while (excessBytes > 0) {
+                val oldestBatch = segmentDao.getOldestSegments(10)
+                if (oldestBatch.isEmpty()) break
+                
+                for (segment in oldestBatch) {
+                    if (excessBytes <= 0) break
+                    val size = File(segment.filePath).length()
+                    if (storageManager.deleteFile(segment.filePath)) {
+                        segmentDao.deleteSegment(segment)
+                        excessBytes -= size
+                        Log.d(TAG, "Deleted segment (${size} bytes) for storage limit: ${segment.filePath}")
+                    }
                 }
             }
         }

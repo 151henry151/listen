@@ -8,6 +8,9 @@ import android.os.Looper
 import android.util.Log
 import com.listen.app.service.ListenForegroundService
 import com.listen.app.settings.SettingsManager
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import android.Manifest
 
 /**
  * Broadcast receiver for auto-starting the service after device boot
@@ -25,6 +28,15 @@ class ListenBootReceiver : BroadcastReceiver() {
                 
                 // Check if service should auto-start
                 if (settings.isServiceEnabled && settings.autoStartOnBoot) {
+                    // Verify microphone permission is granted before starting
+                    val micGranted = ContextCompat.checkSelfPermission(
+                        context, Manifest.permission.RECORD_AUDIO
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (!micGranted) {
+                        Log.w(TAG, "Skipping auto-start: RECORD_AUDIO not granted")
+                        return
+                    }
+                    
                     Log.d(TAG, "Auto-starting Listen service after boot")
                     
                     // Delay restart to allow system to stabilize
