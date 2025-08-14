@@ -1,0 +1,28 @@
+build:
+  maxIssues: 0
+
+config:
+  validation: true
+
+processors:
+  active: true
+
+console-reports:
+  active: true
+
+style:
+  MagicNumber:
+    active: false
+  WildcardImport:
+    active: false
+  MaxLineLength:
+    active: true
+    maxLineLength: 140
+  NamingRules:
+    active: true
+
+performance:
+  active: true
+
+potential-bugs:
+  active: true

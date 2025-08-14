@@ -2,6 +2,8 @@ plugins {
     id 'com.android.application'
     id 'kotlin-android'
     id 'kotlin-kapt'
+    id 'io.gitlab.arturbosch.detekt'
+    id 'org.jlleitschuh.gradle.ktlint'
 }
 
 android {
@@ -82,4 +84,17 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
+    config = files("${rootProject.projectDir}/config/detekt/detekt.yml")
+    baseline = file("${rootProject.projectDir}/config/detekt/baseline.xml")
+}
+
+ktlint {
+    android = true
+    outputToConsole = true
+    ignoreFailures = false
 } 
