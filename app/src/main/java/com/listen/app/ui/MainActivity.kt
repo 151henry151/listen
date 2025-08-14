@@ -250,7 +250,7 @@ class MainActivity : AppCompatActivity() {
             settings.isServiceEnabled = true
             promptBatteryOptimizationIfNeeded()
             ListenForegroundService.start(this)
-            Toast.makeText(this, "Recording service started", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.msg_service_started), Toast.LENGTH_SHORT).show()
             updateUI()
             
         } else {
@@ -263,7 +263,7 @@ class MainActivity : AppCompatActivity() {
     fun stopService() {
         settings.isServiceEnabled = false
         ListenForegroundService.stop(this)
-        Toast.makeText(this, "Recording service stopped", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.msg_service_stopped), Toast.LENGTH_SHORT).show()
         updateUI()
     }
     

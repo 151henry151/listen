@@ -172,12 +172,8 @@ This document lists all identified gaps, risks, and enhancements required to bri
   - Refs: `SettingsManager.kt`.
 
 - **P2: Improve storage health and telemetry**
-  - **Problem**: No proactive alerts or UI indicators when storage is low; emergency cleanup not surfaced to user.
-  - **Tasks**:
-    - [ ] Add UI banner/toast when storage near/exceeds cap.
-    - [ ] Expose storage stats in Main screen (segments count, usage/available).
-  - **Acceptance**: Users are informed before recording is impacted.
-  - **Refs**: `SegmentManagerService.kt`, `StorageManager.kt`, `MainActivity.kt`.
+  - Resolved: Added low-storage toast and segment count to Main screen; usage/available already displayed.
+  - Refs: `MainActivity.kt`. 
 
 - **P2: Room migrations plan**
   - Resolved: Added v2 migration scaffold and enabled exportSchema for future tracking.
