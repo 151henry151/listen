@@ -70,6 +70,25 @@ class SettingsManager(context: Context) {
         return segmentSizeBytes * segmentsCount
     }
     
+    /** Calculate storage usage with margin (default 20% margin) */
+    fun calculateStorageUsageWithMargin(marginPercent: Double = 20.0): Long {
+        val baseUsage = calculateStorageUsage()
+        val margin = (baseUsage * marginPercent) / 100.0
+        return (baseUsage + margin).toLong()
+    }
+    
+    /** Whether to show notifications */
+    var showNotification: Boolean
+        get() = prefs.getBoolean(KEY_SHOW_NOTIFICATION, true)
+        set(value) = prefs.edit { putBoolean(KEY_SHOW_NOTIFICATION, value) }
+    
+    /** Get recent segments (placeholder - would need database access) */
+    fun getRecentSegments(limit: Int = 10): List<String> {
+        // This is a placeholder implementation
+        // In a real implementation, this would query the database
+        return emptyList()
+    }
+    
     /** Get formatted storage usage string */
     fun getFormattedStorageUsage(): String {
         val usageBytes = calculateStorageUsage()
@@ -104,6 +123,7 @@ class SettingsManager(context: Context) {
         private const val KEY_LAST_SERVICE_START = "last_service_start"
         private const val KEY_POWER_SAVING_MODE = "power_saving_mode"
         private const val KEY_ADAPTIVE_PERFORMANCE = "adaptive_performance"
+        private const val KEY_SHOW_NOTIFICATION = "show_notification"
         
         // Default values
         const val DEFAULT_SEGMENT_DURATION = 60 // 1 minute

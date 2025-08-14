@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Audio bitrate options -->
+    <string-array name="audio_bitrates">
+        <item>16 kbps</item>
+        <item>24 kbps</item>
+        <item>32 kbps</item>
+        <item>48 kbps</item>
+        <item>64 kbps</item>
+        <item>96 kbps</item>
+        <item>128 kbps</item>
+    </string-array>
+
+    <!-- Audio sample rate options -->
+    <string-array name="audio_sample_rates">
+        <item>8 kHz</item>
+        <item>16 kHz</item>
+        <item>22.05 kHz</item>
+        <item>44.1 kHz</item>
+        <item>48 kHz</item>
+    </string-array>
+
+    <!-- Audio bitrate values (corresponding to the display strings) -->
+    <integer-array name="audio_bitrate_values">
+        <item>16</item>
+        <item>24</item>
+        <item>32</item>
+        <item>48</item>
+        <item>64</item>
+        <item>96</item>
+        <item>128</item>
+    </integer-array>
+
+    <!-- Audio sample rate values (corresponding to the display strings) -->
+    <integer-array name="audio_sample_rate_values">
+        <item>8000</item>
+        <item>16000</item>
+        <item>22050</item>
+        <item>44100</item>
+        <item>48000</item>
+    </integer-array>
+</resources> 

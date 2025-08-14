@@ -62,4 +62,32 @@
     <string name="unit_hours">hours</string>
     <string name="unit_mb">MB</string>
     <string name="unit_gb">GB</string>
+    
+    <!-- Segment Adapter -->
+    <string name="tv_segment_time">Time: %s</string>
+    <string name="tv_segment_duration">Duration: %s</string>
+    <string name="tv_segment_size">Size: %s</string>
+    <string name="btn_play_segment">Play</string>
+    <string name="segment_size_mb">%.1f MB</string>
+    <string name="segment_size_kb">%.1f KB</string>
+    <string name="segment_size_unknown">Unknown</string>
+    <string name="segment_missing">File Missing</string>
+    
+    <!-- Audio Levels -->
+    <string name="audio_levels">Audio Levels</string>
+    <string name="audio_level_quiet">Quiet</string>
+    <string name="audio_level_low">Low</string>
+    <string name="audio_level_medium">Medium</string>
+    <string name="audio_level_high">High</string>
+    <string name="audio_level_loud">Loud</string>
+    
+    <!-- Error Messages -->
+    <string name="error_playing_segment">Error playing segment</string>
+    <string name="msg_service_health_check_failed">Service health check failed</string>
+    <string name="msg_recording_recovery_attempted">Recording recovery attempted</string>
+    <string name="msg_recording_recovery_successful">Recording recovery successful</string>
+    <string name="msg_recording_recovery_failed">Recording recovery failed</string>
+    <string name="msg_microphone_unavailable">Microphone unavailable</string>
+    <string name="msg_storage_directory_error">Storage directory error</string>
+    <string name="msg_insufficient_storage_recording">Insufficient storage for recording</string>
 </resources> 

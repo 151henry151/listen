@@ -1,23 +1,18 @@
 package com.listen.app.util
 
-import com.listen.app.BuildConfig
-import timber.log.Timber
+import android.util.Log
 
 object AppLog {
 	fun d(tag: String, msg: String) {
-		if (BuildConfig.DEBUG) Timber.tag(tag).d(msg)
+		Log.d(tag, msg)
 	}
 	fun i(tag: String, msg: String) {
-		if (BuildConfig.DEBUG) Timber.tag(tag).i(msg)
+		Log.i(tag, msg)
 	}
 	fun w(tag: String, msg: String, t: Throwable? = null) {
-		if (BuildConfig.DEBUG) {
-			if (t != null) Timber.tag(tag).w(t, msg) else Timber.tag(tag).w(msg)
-		}
+		if (t != null) Log.w(tag, msg, t) else Log.w(tag, msg)
 	}
 	fun e(tag: String, msg: String, t: Throwable? = null) {
-		if (BuildConfig.DEBUG) {
-			if (t != null) Timber.tag(tag).e(t, msg) else Timber.tag(tag).e(msg)
-		}
+		if (t != null) Log.e(tag, msg, t) else Log.e(tag, msg)
 	}
 }
