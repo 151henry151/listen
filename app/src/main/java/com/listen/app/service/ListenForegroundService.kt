@@ -126,6 +126,7 @@ class ListenForegroundService : Service() {
         
         if (!isServiceRunning) {
             startForegroundService()
+            ensureWakeLock()
             val started = startRecording()
             if (started) {
                 startInServiceRotationScheduler()
@@ -260,13 +261,10 @@ class ListenForegroundService : Service() {
                 val segmentDuration = settings.segmentDurationSeconds.toLong().coerceAtLeast(1L)
                 delay(segmentDuration * 1000L)
                 try {
-                    acquireWakeLock(5_000L)
                     audioRecorder.rotateSegment()
                     broadcastStatus()
                 } catch (e: Exception) {
                     Log.e(TAG, "Error rotating segment", e)
-                } finally {
-                    releaseWakeLock()
                 }
             }
         }
@@ -367,17 +365,19 @@ class ListenForegroundService : Service() {
     
     /** Emergency cleanup */
     fun emergencyCleanup(requiredBytes: Long) = segmentManager.emergencyCleanup(requiredBytes)
-
-    private fun acquireWakeLock(timeoutMs: Long) {
+    
+    private fun ensureWakeLock() {
         try {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
             if (wakeLock == null) {
                 wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Listen:Recorder")
                 wakeLock?.setReferenceCounted(false)
             }
-            wakeLock?.acquire(timeoutMs)
+            if (wakeLock?.isHeld != true) {
+                wakeLock?.acquire()
+            }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to acquire wake lock", e)
+            Log.w(TAG, "Failed to acquire persistent wake lock", e)
         }
     }
     
