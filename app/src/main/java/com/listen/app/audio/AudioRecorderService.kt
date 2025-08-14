@@ -5,6 +5,7 @@ import android.media.MediaRecorder
 import android.util.Log
 import com.listen.app.storage.StorageManager
 import java.io.File
+import com.listen.app.util.AppLog
 
 /**
  * Handles continuous audio recording with optimal settings for speech clarity
@@ -29,46 +30,68 @@ class AudioRecorderService(
     
     /** Start recording with current settings */
     fun startRecording(): Boolean {
-        return try {
-            if (isRecording) {
-                Log.w(TAG, "Already recording, stopping current session first")
-                stopRecording()
-            }
-            
-            val segmentFile = storageManager.createSegmentFile(System.currentTimeMillis())
-            segmentStartTime = System.currentTimeMillis()
-            
-            mediaRecorder = MediaRecorder().apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioSamplingRate(audioSampleRate)
-                setAudioChannels(audioChannels)
-                setAudioEncodingBitRate(audioBitrate)
-                setOutputFile(segmentFile.absolutePath)
+        return tryStartRecordingWithRetry()
+    }
+    
+    private fun tryStartRecordingWithRetry(maxAttempts: Int = 3): Boolean {
+        var attempt = 0
+        var delayMs = 250L
+        var lastError: Exception? = null
+        
+        while (attempt < maxAttempts) {
+            attempt++
+            try {
+                if (isRecording) {
+                    AppLog.w(TAG, "Already recording, stopping current session first")
+                    stopRecording()
+                }
                 
-                prepare()
-                start()
+                val segmentFile = storageManager.createSegmentFile(System.currentTimeMillis())
+                segmentStartTime = System.currentTimeMillis()
+                
+                mediaRecorder = MediaRecorder().apply {
+                    setAudioSource(MediaRecorder.AudioSource.MIC)
+                    setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                    setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                    setAudioSamplingRate(audioSampleRate)
+                    setAudioChannels(audioChannels)
+                    setAudioEncodingBitRate(audioBitrate)
+                    setOutputFile(segmentFile.absolutePath)
+                    
+                    prepare()
+                    start()
+                }
+                
+                currentSegmentFile = segmentFile
+                isRecording = true
+                
+                AppLog.d(TAG, "Started recording to: ${segmentFile.absolutePath} (attempt=$attempt)")
+                return true
+                
+            } catch (e: Exception) {
+                lastError = e
+                AppLog.e(TAG, "Failed to start recording (attempt=$attempt/$maxAttempts)", e)
+                cleanup()
+                
+                if (attempt < maxAttempts) {
+                    try {
+                        Thread.sleep(delayMs)
+                    } catch (_: InterruptedException) {
+                        // ignore
+                    }
+                    delayMs = (delayMs * 2).coerceAtMost(2000L)
+                }
             }
-            
-            currentSegmentFile = segmentFile
-            isRecording = true
-            
-            Log.d(TAG, "Started recording to: ${segmentFile.absolutePath}")
-            true
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to start recording", e)
-            cleanup()
-            false
         }
+        AppLog.e(TAG, "All attempts to start recording failed", lastError)
+        return false
     }
     
     /** Stop current recording and return the completed file */
     fun stopRecording(): File? {
         return try {
             if (!isRecording) {
-                Log.w(TAG, "Not currently recording")
+                AppLog.w(TAG, "Not currently recording")
                 return null
             }
             
@@ -84,7 +107,7 @@ class AudioRecorderService(
             mediaRecorder = null
             isRecording = false
             
-            Log.d(TAG, "Stopped recording: ${completedFile?.absolutePath}, duration: ${duration}ms")
+            AppLog.d(TAG, "Stopped recording: ${completedFile?.absolutePath}, duration: ${duration}ms")
             
             // Notify completion
             completedFile?.let { file ->
@@ -94,7 +117,7 @@ class AudioRecorderService(
             completedFile
             
         } catch (e: Exception) {
-            Log.e(TAG, "Error stopping recording", e)
+            AppLog.e(TAG, "Error stopping recording", e)
             cleanup()
             null
         }
@@ -106,7 +129,7 @@ class AudioRecorderService(
         
         // Start new segment immediately
         if (!startRecording()) {
-            Log.e(TAG, "Failed to start new segment after rotation")
+            AppLog.e(TAG, "Failed to start new segment after rotation")
         }
         
         return completedFile
@@ -118,7 +141,7 @@ class AudioRecorderService(
         audioSampleRate = sampleRate
         audioChannels = channels
         
-        Log.d(TAG, "Updated audio settings: ${bitrate}bps, ${sampleRate}Hz, ${channels}ch")
+        AppLog.d(TAG, "Updated audio settings: ${bitrate}bps, ${sampleRate}Hz, ${channels}ch")
     }
     
     /** Check if currently recording */
@@ -146,7 +169,7 @@ class AudioRecorderService(
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error during cleanup", e)
+            AppLog.e(TAG, "Error during cleanup", e)
         } finally {
             mediaRecorder = null
             currentSegmentFile = null

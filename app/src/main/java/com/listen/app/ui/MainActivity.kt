@@ -17,6 +17,13 @@ import com.listen.app.settings.SettingsManager
 import com.listen.app.storage.StorageManager
 import com.listen.app.databinding.ActivityMainBinding
 import kotlinx.coroutines.launch
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
+import android.os.PowerManager
+import android.provider.Settings
+import androidx.appcompat.app.AlertDialog
+import com.listen.app.util.AppLog
 
 /**
  * Main activity with dashboard and service controls
@@ -32,10 +39,10 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            Log.d(TAG, "Microphone permission granted")
+            AppLog.d(TAG, "Microphone permission granted")
             requestNotificationPermission()
         } else {
-            Log.w(TAG, "Microphone permission denied")
+            AppLog.w(TAG, "Microphone permission denied")
             Toast.makeText(this, "Microphone permission required for recording", Toast.LENGTH_LONG).show()
         }
     }
@@ -44,11 +51,21 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            Log.d(TAG, "Notification permission granted")
+            AppLog.d(TAG, "Notification permission granted")
         } else {
-            Log.w(TAG, "Notification permission denied")
+            AppLog.w(TAG, "Notification permission denied")
         }
         checkAndStartService()
+    }
+    
+    private val statusReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ListenForegroundService.ACTION_RECORDING_STATUS) {
+                val isRecording = intent.getBooleanExtra(ListenForegroundService.EXTRA_IS_RECORDING, false)
+                val elapsed = intent.getLongExtra(ListenForegroundService.EXTRA_ELAPSED_MS, 0L)
+                updateRecordingStatus(isRecording, elapsed)
+            }
+        }
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,7 +87,15 @@ class MainActivity : AppCompatActivity() {
     
     override fun onResume() {
         super.onResume()
+        registerReceiver(statusReceiver, IntentFilter(ListenForegroundService.ACTION_RECORDING_STATUS))
         updateUI()
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        try {
+            unregisterReceiver(statusReceiver)
+        } catch (_: Exception) {}
     }
     
     /** Set up the user interface */
@@ -92,7 +117,7 @@ class MainActivity : AppCompatActivity() {
             openSettings()
         }
         
-        Log.d(TAG, "MainActivity UI setup completed")
+        AppLog.d(TAG, "MainActivity UI setup completed")
     }
     
     /** Check permissions and service status */
@@ -102,7 +127,7 @@ class MainActivity : AppCompatActivity() {
                 this,
                 Manifest.permission.RECORD_AUDIO
             ) == PackageManager.PERMISSION_GRANTED -> {
-                Log.d(TAG, "Microphone permission already granted")
+                AppLog.d(TAG, "Microphone permission already granted")
                 requestNotificationPermission()
             }
             shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) -> {
@@ -124,7 +149,7 @@ class MainActivity : AppCompatActivity() {
                     this,
                     Manifest.permission.POST_NOTIFICATIONS
                 ) == PackageManager.PERMISSION_GRANTED -> {
-                    Log.d(TAG, "Notification permission already granted")
+                    AppLog.d(TAG, "Notification permission already granted")
                     checkAndStartService()
                 }
                 else -> {
@@ -138,24 +163,24 @@ class MainActivity : AppCompatActivity() {
     
     /** Show permission rationale dialog */
     private fun showPermissionRationale() {
-        // TODO: Show custom dialog explaining why microphone permission is needed
-        Toast.makeText(
-            this,
-            "Microphone permission is required to record audio in the background",
-            Toast.LENGTH_LONG
-        ).show()
-        
-        // Request permission after showing rationale
-        requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.permission_microphone_title))
+            .setMessage(getString(R.string.permission_microphone_message))
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
     
     /** Check if service should be started and start it */
     private fun checkAndStartService() {
         if (settings.isServiceEnabled) {
-            Log.d(TAG, "Service is enabled, starting...")
+            AppLog.d(TAG, "Service is enabled, starting...")
+            promptBatteryOptimizationIfNeeded()
             ListenForegroundService.start(this)
         } else {
-            Log.d(TAG, "Service is disabled")
+            AppLog.d(TAG, "Service is disabled")
         }
     }
     
@@ -169,6 +194,7 @@ class MainActivity : AppCompatActivity() {
                 // Update storage information
                 val storageStats = storageManager.getFormattedStorageUsage()
                 val availableStorage = storageManager.getFormattedAvailableStorage()
+                val segmentCount = database.segmentDao().getSegmentCount()
                 
                 // Update UI elements
                 binding.tvServiceStatus.text = if (isServiceEnabled) {
@@ -185,14 +211,33 @@ class MainActivity : AppCompatActivity() {
                 
                 binding.tvStorageUsage.text = storageStats
                 binding.tvAvailableStorage.text = "Available: $availableStorage"
+                binding.tvSegmentsCount.text = "Segments: $segmentCount"
                 
-                Log.d(TAG, "Service enabled: $isServiceEnabled")
-                Log.d(TAG, "Storage usage: $storageStats")
-                Log.d(TAG, "Available storage: $availableStorage")
+                maybeWarnLowStorage()
+                
+                AppLog.d(TAG, "Service enabled: $isServiceEnabled")
+                AppLog.d(TAG, "Storage usage: $storageStats")
+                AppLog.d(TAG, "Available storage: $availableStorage")
                 
             } catch (e: Exception) {
-                Log.e(TAG, "Error updating UI", e)
+                AppLog.e(TAG, "Error updating UI", e)
             }
+        }
+    }
+    
+    private fun updateRecordingStatus(isRecording: Boolean, elapsedMs: Long) {
+        val minutes = elapsedMs / 60000
+        val seconds = (elapsedMs % 60000) / 1000
+        binding.tvRecordingStatus.text = if (isRecording) {
+            getString(R.string.status_recording) + "  ${minutes}:${String.format("%02d", seconds)}"
+        } else {
+            getString(R.string.status_stopped)
+        }
+        // Keep start/stop label in sync with serviceEnabled toggle
+        binding.btnStartStop.text = if (settings.isServiceEnabled) {
+            getString(R.string.btn_stop_recording)
+        } else {
+            getString(R.string.btn_start_recording)
         }
     }
     
@@ -204,8 +249,9 @@ class MainActivity : AppCompatActivity() {
             ) == PackageManager.PERMISSION_GRANTED) {
             
             settings.isServiceEnabled = true
+            promptBatteryOptimizationIfNeeded()
             ListenForegroundService.start(this)
-            Toast.makeText(this, "Recording service started", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.msg_service_started), Toast.LENGTH_SHORT).show()
             updateUI()
             
         } else {
@@ -218,8 +264,23 @@ class MainActivity : AppCompatActivity() {
     fun stopService() {
         settings.isServiceEnabled = false
         ListenForegroundService.stop(this)
-        Toast.makeText(this, "Recording service stopped", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.msg_service_stopped), Toast.LENGTH_SHORT).show()
         updateUI()
+    }
+    
+    private fun promptBatteryOptimizationIfNeeded() {
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            val pkg = packageName
+            val ignoring = pm.isIgnoringBatteryOptimizations(pkg)
+            if (!ignoring && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                intent.data = android.net.Uri.parse("package:$pkg")
+                startActivity(intent)
+            }
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Battery optimization prompt failed", e)
+        }
     }
     
     /** Open playback activity */
@@ -230,8 +291,17 @@ class MainActivity : AppCompatActivity() {
     
     /** Open settings activity */
     fun openSettings() {
-        // TODO: Implement settings activity
-        Toast.makeText(this, "Settings coming soon", Toast.LENGTH_SHORT).show()
+        startActivity(Intent(this, SettingsActivity::class.java))
+    }
+    
+    private fun maybeWarnLowStorage() {
+        try {
+            val estRequired = settings.calculateStorageUsage()
+            val available = storageManager.getAvailableStorage()
+            if (available < estRequired * 2 / 10) { // <20% of estimated requirement
+                Toast.makeText(this, getString(R.string.msg_storage_full), Toast.LENGTH_SHORT).show()
+            }
+        } catch (_: Exception) {}
     }
     
     companion object {

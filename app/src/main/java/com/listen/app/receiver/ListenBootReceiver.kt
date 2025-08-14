@@ -8,6 +8,10 @@ import android.os.Looper
 import android.util.Log
 import com.listen.app.service.ListenForegroundService
 import com.listen.app.settings.SettingsManager
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import android.Manifest
+import com.listen.app.util.AppLog
 
 /**
  * Broadcast receiver for auto-starting the service after device boot
@@ -15,7 +19,7 @@ import com.listen.app.settings.SettingsManager
 class ListenBootReceiver : BroadcastReceiver() {
     
     override fun onReceive(context: Context, intent: Intent) {
-        Log.d(TAG, "Boot receiver triggered: ${intent.action}")
+        AppLog.d(TAG, "Boot receiver triggered: ${intent.action}")
         
         when (intent.action) {
             Intent.ACTION_BOOT_COMPLETED,
@@ -25,20 +29,29 @@ class ListenBootReceiver : BroadcastReceiver() {
                 
                 // Check if service should auto-start
                 if (settings.isServiceEnabled && settings.autoStartOnBoot) {
-                    Log.d(TAG, "Auto-starting Listen service after boot")
+                    // Verify microphone permission is granted before starting
+                    val micGranted = ContextCompat.checkSelfPermission(
+                        context, Manifest.permission.RECORD_AUDIO
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (!micGranted) {
+                        AppLog.w(TAG, "Skipping auto-start: RECORD_AUDIO not granted")
+                        return
+                    }
+                    
+                    AppLog.d(TAG, "Auto-starting Listen service after boot")
                     
                     // Delay restart to allow system to stabilize
                     Handler(Looper.getMainLooper()).postDelayed({
                         try {
                             ListenForegroundService.start(context)
-                            Log.d(TAG, "Service auto-started successfully")
+                            AppLog.d(TAG, "Service auto-started successfully")
                         } catch (e: Exception) {
-                            Log.e(TAG, "Failed to auto-start service", e)
+                            AppLog.e(TAG, "Failed to auto-start service", e)
                         }
                     }, BOOT_DELAY_MS)
                     
                 } else {
-                    Log.d(TAG, "Service auto-start disabled or service not enabled")
+                    AppLog.d(TAG, "Service auto-start disabled or service not enabled")
                 }
             }
         }

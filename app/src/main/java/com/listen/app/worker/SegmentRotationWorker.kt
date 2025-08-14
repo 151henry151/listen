@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.listen.app.service.ListenForegroundService
+import com.listen.app.util.AppLog
 
 /**
  * WorkManager worker for periodic segment rotation
@@ -16,17 +17,17 @@ class SegmentRotationWorker(
     
     override suspend fun doWork(): Result {
         return try {
-            Log.d(TAG, "Segment rotation work started")
+            AppLog.d(TAG, "Segment rotation work started")
             
             // Check if service is running and rotate segment
             // Note: In a real implementation, we'd need a way to communicate with the service
             // For now, we'll just log that the work was triggered
             
-            Log.d(TAG, "Segment rotation completed successfully")
+            AppLog.d(TAG, "Segment rotation completed successfully")
             Result.success()
             
         } catch (e: Exception) {
-            Log.e(TAG, "Error during segment rotation", e)
+            AppLog.e(TAG, "Error during segment rotation", e)
             Result.retry()
         }
     }

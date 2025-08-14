@@ -43,11 +43,6 @@ class SettingsManager(context: Context) {
         get() = prefs.getInt(KEY_MAX_STORAGE, DEFAULT_MAX_STORAGE)
         set(value) = prefs.edit { putInt(KEY_MAX_STORAGE, value) }
     
-    /** Whether to show notification */
-    var showNotification: Boolean
-        get() = prefs.getBoolean(KEY_SHOW_NOTIFICATION, true)
-        set(value) = prefs.edit { putBoolean(KEY_SHOW_NOTIFICATION, value) }
-    
     /** Whether to auto-start on boot */
     var autoStartOnBoot: Boolean
         get() = prefs.getBoolean(KEY_AUTO_START_BOOT, true)
@@ -95,7 +90,6 @@ class SettingsManager(context: Context) {
         private const val KEY_AUDIO_BITRATE = "audio_bitrate"
         private const val KEY_AUDIO_SAMPLE_RATE = "audio_sample_rate"
         private const val KEY_MAX_STORAGE = "max_storage"
-        private const val KEY_SHOW_NOTIFICATION = "show_notification"
         private const val KEY_AUTO_START_BOOT = "auto_start_boot"
         private const val KEY_LAST_SERVICE_START = "last_service_start"
         

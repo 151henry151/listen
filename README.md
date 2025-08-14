@@ -93,6 +93,32 @@ Listen is a background-listening app that captures ambient audio from your surro
 - **Storage**: Minimum 100MB free space (varies by retention settings)
 - **Hardware**: Microphone support
 
+## 🧑‍💻 Development
+
+### Build locally
+- Install Android Studio (Giraffe or newer) with SDK 26–34
+- Set `sdk.dir` in `local.properties`
+- Build and run:
+  - From IDE: Run the `app` configuration
+  - CLI: `./gradlew assembleDebug`
+
+### Logging
+- Debug builds use Timber; logs routed via `AppLog` wrapper
+- Release builds silence logs through `AppLog` no-op behavior
+
+### StrictMode (debug)
+- StrictMode is enabled in debug builds via `ListenApplication` to catch disk/network on main thread and leaks early
+
+### Linting & Static Analysis
+- Android Lint: `./gradlew lintDebug`
+- Detekt: `./gradlew detekt`
+- Ktlint: `./gradlew ktlintCheck`
+
+### CI
+- GitHub Actions builds on push/PR to `main`:
+  - Assemble debug, run unit tests, Android Lint
+  - Optionally runs Detekt and Ktlint if configured
+
 ## 🚧 Development Status
 
 This project is currently in the initial planning and development phase.

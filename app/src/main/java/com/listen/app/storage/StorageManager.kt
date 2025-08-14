@@ -5,6 +5,7 @@ import android.util.Log
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import com.listen.app.util.AppLog
 
 /**
  * Manages file system operations for audio segments
@@ -22,8 +23,8 @@ class StorageManager(private val context: Context) {
     
     /** Create a new segment file with timestamp-based naming */
     fun createSegmentFile(timestamp: Long): File {
-        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
-        val fileName = "segment_${dateFormat.format(Date(timestamp))}.aac"
+        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US)
+        val fileName = "segment_${dateFormat.format(Date(timestamp))}.m4a"
         return File(segmentsDir, fileName)
     }
     
@@ -35,7 +36,7 @@ class StorageManager(private val context: Context) {
                 .map { it.length() }
                 .sum()
         } catch (e: Exception) {
-            Log.e(TAG, "Error calculating storage usage", e)
+            AppLog.e(TAG, "Error calculating storage usage", e)
             0L
         }
     }
@@ -45,7 +46,7 @@ class StorageManager(private val context: Context) {
         return try {
             segmentsDir.freeSpace
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting available storage", e)
+            AppLog.e(TAG, "Error getting available storage", e)
             0L
         }
     }
@@ -65,15 +66,15 @@ class StorageManager(private val context: Context) {
                 val file = File(filePath)
                 if (file.delete()) {
                     deletedCount++
-                    Log.d(TAG, "Deleted orphaned file: $filePath")
+                    AppLog.d(TAG, "Deleted orphaned file: $filePath")
                 } else {
-                    Log.w(TAG, "Failed to delete orphaned file: $filePath")
+                    AppLog.w(TAG, "Failed to delete orphaned file: $filePath")
                 }
             }
             
             deletedCount
         } catch (e: Exception) {
-            Log.e(TAG, "Error cleaning up orphaned files", e)
+            AppLog.e(TAG, "Error cleaning up orphaned files", e)
             0
         }
     }
@@ -88,7 +89,7 @@ class StorageManager(private val context: Context) {
                 true // File doesn't exist, consider it "deleted"
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error deleting file: $filePath", e)
+            AppLog.e(TAG, "Error deleting file: $filePath", e)
             false
         }
     }
@@ -155,7 +156,7 @@ class StorageManager(private val context: Context) {
             if (file.delete()) {
                 freedBytes += fileSize
                 currentRequired -= fileSize
-                Log.d(TAG, "Emergency cleanup deleted: ${file.name} (${fileSize} bytes)")
+                AppLog.d(TAG, "Emergency cleanup deleted: ${file.name} (${fileSize} bytes)")
             }
         }
         
