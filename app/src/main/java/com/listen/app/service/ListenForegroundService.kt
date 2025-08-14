@@ -25,6 +25,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import android.os.PowerManager
+import com.listen.app.util.AppLog
 
 /**
  * Main foreground service that orchestrates background audio recording
@@ -94,7 +95,7 @@ class ListenForegroundService : Service() {
     
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "Service created")
+        AppLog.d(TAG, "Service created")
         
         // Initialize components
         settings = SettingsManager(this)
@@ -116,10 +117,10 @@ class ListenForegroundService : Service() {
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "Service started")
+        AppLog.d(TAG, "Service started")
         
         if (intent?.action == ACTION_UPDATE_SETTINGS) {
-            Log.d(TAG, "Applying updated settings to recorder")
+            AppLog.d(TAG, "Applying updated settings to recorder")
             updateAudioSettings()
             return START_STICKY
         }
@@ -144,7 +145,7 @@ class ListenForegroundService : Service() {
     }
     
     override fun onDestroy() {
-        Log.d(TAG, "Service destroyed")
+        AppLog.d(TAG, "Service destroyed")
         stopStatusBroadcasts()
         stopInServiceRotationScheduler()
         stopRecording()
@@ -157,7 +158,7 @@ class ListenForegroundService : Service() {
     }
     
     override fun onTaskRemoved(rootIntent: Intent?) {
-        Log.d(TAG, "App removed from recent tasks, restarting service")
+        AppLog.d(TAG, "App removed from recent tasks, restarting service")
         // Restart service if app is removed from recent tasks
         val restartServiceIntent = Intent(this, ListenForegroundService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -174,7 +175,7 @@ class ListenForegroundService : Service() {
         val notification = createNotification()
         startForeground(NOTIFICATION_ID, notification)
         isServiceRunning = true
-        Log.d(TAG, "Started foreground service")
+        AppLog.d(TAG, "Started foreground service")
     }
     
     /** Create the notification for the foreground service */
@@ -249,7 +250,7 @@ class ListenForegroundService : Service() {
     private fun stopRecording() {
         audioRecorder.stopRecording()
         broadcastStatus()
-        Log.d(TAG, "Audio recording stopped")
+        AppLog.d(TAG, "Audio recording stopped")
     }
     
     /** In-service rotation scheduler to replace WorkManager short-period scheduling */
@@ -264,18 +265,18 @@ class ListenForegroundService : Service() {
                     audioRecorder.rotateSegment()
                     broadcastStatus()
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error rotating segment", e)
+                    AppLog.e(TAG, "Error rotating segment", e)
                 }
             }
         }
-        Log.d(TAG, "Started in-service rotation scheduler")
+        AppLog.d(TAG, "Started in-service rotation scheduler")
     }
     
     private fun stopInServiceRotationScheduler() {
         if (!rotationJobActive) return
         serviceJob.children.forEach { child -> child.cancel() }
         rotationJobActive = false
-        Log.d(TAG, "Stopped in-service rotation scheduler")
+        AppLog.d(TAG, "Stopped in-service rotation scheduler")
     }
     
     /** Periodically broadcast recording status to UI */
@@ -323,14 +324,14 @@ class ListenForegroundService : Service() {
             segmentWork
         )
         
-        Log.d(TAG, "Scheduled segment rotation every $segmentDuration seconds")
+        AppLog.d(TAG, "Scheduled segment rotation every $segmentDuration seconds")
     }
     
     private fun cancelScheduledSegmentRotationWork() {
         try {
             workManager.cancelUniqueWork("segment_rotation")
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to cancel scheduled segment rotation work", e)
+            AppLog.w(TAG, "Failed to cancel scheduled segment rotation work", e)
         }
     }
     
@@ -377,7 +378,7 @@ class ListenForegroundService : Service() {
                 wakeLock?.acquire()
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to acquire persistent wake lock", e)
+            AppLog.w(TAG, "Failed to acquire persistent wake lock", e)
         }
     }
     
@@ -387,7 +388,7 @@ class ListenForegroundService : Service() {
                 wakeLock?.release()
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to release wake lock", e)
+            AppLog.w(TAG, "Failed to release wake lock", e)
         }
     }
 } 

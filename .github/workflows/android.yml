@@ -41,3 +41,11 @@ jobs:
 
       - name: Run Android Lint
         run: ./gradlew lintDebug --no-daemon
+
+      - name: Run Detekt (if configured)
+        run: |
+          if ./gradlew tasks --all | grep -q detekt; then ./gradlew detekt --no-daemon; else echo "Detekt not configured"; fi
+
+      - name: Run Ktlint (if configured)
+        run: |
+          if ./gradlew tasks --all | grep -q ktlintCheck; then ./gradlew ktlintCheck --no-daemon; else echo "Ktlint not configured"; fi

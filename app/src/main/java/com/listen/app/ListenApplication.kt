@@ -2,6 +2,7 @@ package com.listen.app
 
 import android.app.Application
 import android.os.StrictMode
+import timber.log.Timber
 
 class ListenApplication : Application() {
 	override fun onCreate() {
@@ -22,6 +23,7 @@ class ListenApplication : Application() {
 					.penaltyLog()
 					.build()
 			)
+			Timber.plant(Timber.DebugTree())
 		}
 	}
 }

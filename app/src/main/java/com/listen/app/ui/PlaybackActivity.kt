@@ -25,6 +25,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import com.listen.app.util.AppLog
 
 /**
  * Activity for playing back recorded audio segments
@@ -114,7 +115,7 @@ class PlaybackActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
         
-        Log.d(TAG, "PlaybackActivity UI setup completed")
+        AppLog.d(TAG, "PlaybackActivity UI setup completed")
     }
     
     /** Load segments from database */
@@ -122,11 +123,11 @@ class PlaybackActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 database.segmentDao().getAllSegments().collect { segments ->
-                    Log.d(TAG, "Loaded ${segments.size} segments")
+                    AppLog.d(TAG, "Loaded ${segments.size} segments")
                     updateSegmentsList(segments)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading segments", e)
+                AppLog.e(TAG, "Error loading segments", e)
             }
         }
     }
@@ -143,12 +144,12 @@ class PlaybackActivity : AppCompatActivity() {
         try {
             val file = File(segment.filePath)
             if (!file.exists()) {
-                Log.e(TAG, "Segment file does not exist: ${segment.filePath}")
+                AppLog.e(TAG, "Segment file does not exist: ${segment.filePath}")
                 return
             }
             
             if (!requestAudioFocus()) {
-                Log.w(TAG, "Audio focus not granted; continuing cautiously")
+                AppLog.w(TAG, "Audio focus not granted; continuing cautiously")
             }
             
             mediaPlayer = MediaPlayer().apply {
@@ -172,10 +173,10 @@ class PlaybackActivity : AppCompatActivity() {
             tvCurrentTime.text = formatMs(0)
             startProgressUpdater()
             
-            Log.d(TAG, "Started playing segment: ${segment.filePath}")
+            AppLog.d(TAG, "Started playing segment: ${segment.filePath}")
             
         } catch (e: Exception) {
-            Log.e(TAG, "Error playing segment", e)
+            AppLog.e(TAG, "Error playing segment", e)
         }
     }
     
@@ -184,7 +185,7 @@ class PlaybackActivity : AppCompatActivity() {
         mediaPlayer?.let { player ->
             if (player.isPlaying) {
                 player.pause()
-                Log.d(TAG, "Playback paused")
+                AppLog.d(TAG, "Playback paused")
             }
         }
     }
@@ -194,10 +195,10 @@ class PlaybackActivity : AppCompatActivity() {
         mediaPlayer?.let { player ->
             if (!player.isPlaying) {
                 if (!requestAudioFocus()) {
-                    Log.w(TAG, "Audio focus not granted; continuing cautiously")
+                    AppLog.w(TAG, "Audio focus not granted; continuing cautiously")
                 }
                 player.start()
-                Log.d(TAG, "Playback resumed")
+                AppLog.d(TAG, "Playback resumed")
             }
         }
     }
@@ -216,7 +217,7 @@ class PlaybackActivity : AppCompatActivity() {
         btnPlayPause.isEnabled = false
         btnStop.isEnabled = false
         seekBar.isEnabled = false
-        Log.d(TAG, "Playback stopped")
+        AppLog.d(TAG, "Playback stopped")
     }
     
     private fun requestAudioFocus(): Boolean {

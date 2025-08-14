@@ -12,6 +12,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.io.File
+import com.listen.app.util.AppLog
 
 /**
  * Manages audio segment lifecycle, storage, and cleanup
@@ -48,13 +49,13 @@ class SegmentManagerService(
                 )
                 
                 val segmentId = segmentDao.insertSegment(segment)
-                Log.d(TAG, "Added segment to database: ID=$segmentId, file=${file.name}")
+                AppLog.d(TAG, "Added segment to database: ID=$segmentId, file=${file.name}")
                 
                 // Perform cleanup after adding new segment
                 performCleanup()
                 
             } catch (e: Exception) {
-                Log.e(TAG, "Error adding segment to database", e)
+                AppLog.e(TAG, "Error adding segment to database", e)
             }
         }
     }
@@ -73,7 +74,7 @@ class SegmentManagerService(
                 cleanupOrphanedFiles()
                 
             } catch (e: Exception) {
-                Log.e(TAG, "Error during cleanup", e)
+                AppLog.e(TAG, "Error during cleanup", e)
             }
         }
     }
@@ -87,14 +88,14 @@ class SegmentManagerService(
         val oldSegments = segmentDao.getSegmentsOlderThan(cutoffTime)
         
         if (oldSegments.isNotEmpty()) {
-            Log.d(TAG, "Cleaning up ${oldSegments.size} old segments")
+            AppLog.d(TAG, "Cleaning up ${oldSegments.size} old segments")
             
             oldSegments.forEach { segment ->
                 if (storageManager.deleteFile(segment.filePath)) {
                     segmentDao.deleteSegment(segment)
-                    Log.d(TAG, "Deleted old segment: ${segment.filePath}")
+                    AppLog.d(TAG, "Deleted old segment: ${segment.filePath}")
                 } else {
-                    Log.w(TAG, "Failed to delete old segment file: ${segment.filePath}")
+                    AppLog.w(TAG, "Failed to delete old segment file: ${segment.filePath}")
                 }
             }
         }
@@ -107,7 +108,7 @@ class SegmentManagerService(
         
         if (currentUsage > maxStorageBytes) {
             var excessBytes = currentUsage - maxStorageBytes
-            Log.w(TAG, "Storage limit exceeded by ${excessBytes} bytes. Beginning targeted cleanup...")
+            AppLog.w(TAG, "Storage limit exceeded by ${excessBytes} bytes. Beginning targeted cleanup...")
             
             // Iteratively delete oldest segments until enough space is freed
             while (excessBytes > 0) {
@@ -120,7 +121,7 @@ class SegmentManagerService(
                     if (storageManager.deleteFile(segment.filePath)) {
                         segmentDao.deleteSegment(segment)
                         excessBytes -= size
-                        Log.d(TAG, "Deleted segment (${size} bytes) for storage limit: ${segment.filePath}")
+                        AppLog.d(TAG, "Deleted segment (${size} bytes) for storage limit: ${segment.filePath}")
                     }
                 }
             }
@@ -133,7 +134,7 @@ class SegmentManagerService(
         val deletedCount = storageManager.cleanupOrphanedFiles(databaseFiles)
         
         if (deletedCount > 0) {
-            Log.d(TAG, "Cleaned up $deletedCount orphaned files")
+            AppLog.d(TAG, "Cleaned up $deletedCount orphaned files")
         }
     }
     
@@ -147,11 +148,11 @@ class SegmentManagerService(
                 cleanupOrphanedFiles()
             }
             
-            Log.w(TAG, "Emergency cleanup freed $freedBytes bytes")
+            AppLog.w(TAG, "Emergency cleanup freed $freedBytes bytes")
             freedBytes
             
         } catch (e: Exception) {
-            Log.e(TAG, "Error during emergency cleanup", e)
+            AppLog.e(TAG, "Error during emergency cleanup", e)
             0L
         }
     }

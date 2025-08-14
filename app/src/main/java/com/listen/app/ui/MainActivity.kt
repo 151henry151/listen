@@ -23,6 +23,7 @@ import android.content.IntentFilter
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.appcompat.app.AlertDialog
+import com.listen.app.util.AppLog
 
 /**
  * Main activity with dashboard and service controls
@@ -38,10 +39,10 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            Log.d(TAG, "Microphone permission granted")
+            AppLog.d(TAG, "Microphone permission granted")
             requestNotificationPermission()
         } else {
-            Log.w(TAG, "Microphone permission denied")
+            AppLog.w(TAG, "Microphone permission denied")
             Toast.makeText(this, "Microphone permission required for recording", Toast.LENGTH_LONG).show()
         }
     }
@@ -50,9 +51,9 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            Log.d(TAG, "Notification permission granted")
+            AppLog.d(TAG, "Notification permission granted")
         } else {
-            Log.w(TAG, "Notification permission denied")
+            AppLog.w(TAG, "Notification permission denied")
         }
         checkAndStartService()
     }
@@ -116,7 +117,7 @@ class MainActivity : AppCompatActivity() {
             openSettings()
         }
         
-        Log.d(TAG, "MainActivity UI setup completed")
+        AppLog.d(TAG, "MainActivity UI setup completed")
     }
     
     /** Check permissions and service status */
@@ -126,7 +127,7 @@ class MainActivity : AppCompatActivity() {
                 this,
                 Manifest.permission.RECORD_AUDIO
             ) == PackageManager.PERMISSION_GRANTED -> {
-                Log.d(TAG, "Microphone permission already granted")
+                AppLog.d(TAG, "Microphone permission already granted")
                 requestNotificationPermission()
             }
             shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) -> {
@@ -148,7 +149,7 @@ class MainActivity : AppCompatActivity() {
                     this,
                     Manifest.permission.POST_NOTIFICATIONS
                 ) == PackageManager.PERMISSION_GRANTED -> {
-                    Log.d(TAG, "Notification permission already granted")
+                    AppLog.d(TAG, "Notification permission already granted")
                     checkAndStartService()
                 }
                 else -> {
@@ -175,11 +176,11 @@ class MainActivity : AppCompatActivity() {
     /** Check if service should be started and start it */
     private fun checkAndStartService() {
         if (settings.isServiceEnabled) {
-            Log.d(TAG, "Service is enabled, starting...")
+            AppLog.d(TAG, "Service is enabled, starting...")
             promptBatteryOptimizationIfNeeded()
             ListenForegroundService.start(this)
         } else {
-            Log.d(TAG, "Service is disabled")
+            AppLog.d(TAG, "Service is disabled")
         }
     }
     
@@ -214,12 +215,12 @@ class MainActivity : AppCompatActivity() {
                 
                 maybeWarnLowStorage()
                 
-                Log.d(TAG, "Service enabled: $isServiceEnabled")
-                Log.d(TAG, "Storage usage: $storageStats")
-                Log.d(TAG, "Available storage: $availableStorage")
+                AppLog.d(TAG, "Service enabled: $isServiceEnabled")
+                AppLog.d(TAG, "Storage usage: $storageStats")
+                AppLog.d(TAG, "Available storage: $availableStorage")
                 
             } catch (e: Exception) {
-                Log.e(TAG, "Error updating UI", e)
+                AppLog.e(TAG, "Error updating UI", e)
             }
         }
     }
@@ -278,7 +279,7 @@ class MainActivity : AppCompatActivity() {
                 startActivity(intent)
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Battery optimization prompt failed", e)
+            AppLog.w(TAG, "Battery optimization prompt failed", e)
         }
     }
     

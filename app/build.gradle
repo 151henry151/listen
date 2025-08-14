@@ -23,6 +23,9 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+        debug {
+            // Placeholder for debug-only configs
+        }
     }
     
     compileOptions {
@@ -71,6 +74,9 @@ dependencies {
 
     // Lifecycle runtime for lifecycleScope in Activities
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+
+    // Logging
+    implementation 'com.jakewharton.timber:timber:5.0.1'
     
     // Testing
     testImplementation 'junit:junit:4.13.2'
