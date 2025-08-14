@@ -20,6 +20,9 @@ import kotlinx.coroutines.launch
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.IntentFilter
+import android.os.PowerManager
+import android.provider.Settings
+import androidx.appcompat.app.AlertDialog
 
 /**
  * Main activity with dashboard and service controls
@@ -159,21 +162,21 @@ class MainActivity : AppCompatActivity() {
     
     /** Show permission rationale dialog */
     private fun showPermissionRationale() {
-        // TODO: Show custom dialog explaining why microphone permission is needed
-        Toast.makeText(
-            this,
-            "Microphone permission is required to record audio in the background",
-            Toast.LENGTH_LONG
-        ).show()
-        
-        // Request permission after showing rationale
-        requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.permission_microphone_title))
+            .setMessage(getString(R.string.permission_microphone_message))
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
     
     /** Check if service should be started and start it */
     private fun checkAndStartService() {
         if (settings.isServiceEnabled) {
             Log.d(TAG, "Service is enabled, starting...")
+            promptBatteryOptimizationIfNeeded()
             ListenForegroundService.start(this)
         } else {
             Log.d(TAG, "Service is disabled")
@@ -241,6 +244,7 @@ class MainActivity : AppCompatActivity() {
             ) == PackageManager.PERMISSION_GRANTED) {
             
             settings.isServiceEnabled = true
+            promptBatteryOptimizationIfNeeded()
             ListenForegroundService.start(this)
             Toast.makeText(this, "Recording service started", Toast.LENGTH_SHORT).show()
             updateUI()
@@ -257,6 +261,21 @@ class MainActivity : AppCompatActivity() {
         ListenForegroundService.stop(this)
         Toast.makeText(this, "Recording service stopped", Toast.LENGTH_SHORT).show()
         updateUI()
+    }
+    
+    private fun promptBatteryOptimizationIfNeeded() {
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            val pkg = packageName
+            val ignoring = pm.isIgnoringBatteryOptimizations(pkg)
+            if (!ignoring && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                intent.data = android.net.Uri.parse("package:$pkg")
+                startActivity(intent)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Battery optimization prompt failed", e)
+        }
     }
     
     /** Open playback activity */

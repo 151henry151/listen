@@ -93,7 +93,7 @@
                 android:id="@+id/btn_play_pause"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Play"
+                android:text="@string/btn_play"
                 android:enabled="false" />
 
             <Button
@@ -101,7 +101,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="Stop"
+                android:text="@string/btn_stop"
                 android:enabled="false" />
 
         </LinearLayout>

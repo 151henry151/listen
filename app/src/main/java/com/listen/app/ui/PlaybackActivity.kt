@@ -15,6 +15,11 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.content.Context
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import android.widget.Button
+import android.widget.SeekBar
+import android.widget.TextView
 
 /**
  * Activity for playing back recorded audio segments
@@ -27,6 +32,15 @@ class PlaybackActivity : AppCompatActivity() {
     
     private var audioManager: AudioManager? = null
     private var audioFocusRequest: AudioFocusRequest? = null
+    
+    private lateinit var rvSegments: RecyclerView
+    private lateinit var tvCurrentSegment: TextView
+    private lateinit var seekBar: SeekBar
+    private lateinit var tvCurrentTime: TextView
+    private lateinit var tvTotalTime: TextView
+    private lateinit var btnPlayPause: Button
+    private lateinit var btnStop: Button
+    private lateinit var adapter: SegmentAdapter
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,7 +65,47 @@ class PlaybackActivity : AppCompatActivity() {
     
     /** Set up the user interface */
     private fun setupUI() {
-        // TODO: Implement UI setup with ViewBinding
+        rvSegments = findViewById(R.id.rv_segments)
+        tvCurrentSegment = findViewById(R.id.tv_current_segment)
+        seekBar = findViewById(R.id.seek_bar)
+        tvCurrentTime = findViewById(R.id.tv_current_time)
+        tvTotalTime = findViewById(R.id.tv_total_time)
+        btnPlayPause = findViewById(R.id.btn_play_pause)
+        btnStop = findViewById(R.id.btn_stop)
+        
+        adapter = SegmentAdapter(emptyList()) { segment ->
+            playSegment(segment)
+            tvCurrentSegment.text = File(segment.filePath).name
+        }
+        rvSegments.layoutManager = LinearLayoutManager(this)
+        rvSegments.adapter = adapter
+        
+        btnPlayPause.setOnClickListener {
+            if (isPlaying()) {
+                pausePlayback()
+                btnPlayPause.text = getString(R.string.status_stopped)
+            } else {
+                resumePlayback()
+                btnPlayPause.text = getString(R.string.status_recording)
+            }
+        }
+        
+        btnStop.setOnClickListener {
+            stopPlayback()
+            btnPlayPause.text = getString(R.string.status_stopped)
+        }
+        
+        seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    seekTo(progress)
+                    tvCurrentTime.text = formatMs(progress.toLong())
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+        
         Log.d(TAG, "PlaybackActivity UI setup completed")
     }
     
@@ -61,7 +115,6 @@ class PlaybackActivity : AppCompatActivity() {
             try {
                 database.segmentDao().getAllSegments().collect { segments ->
                     Log.d(TAG, "Loaded ${segments.size} segments")
-                    // TODO: Update UI with segments list
                     updateSegmentsList(segments)
                 }
             } catch (e: Exception) {
@@ -72,8 +125,7 @@ class PlaybackActivity : AppCompatActivity() {
     
     /** Update the segments list in the UI */
     private fun updateSegmentsList(segments: List<Segment>) {
-        // TODO: Update RecyclerView or ListView with segments
-        Log.d(TAG, "Updating segments list with ${segments.size} items")
+        adapter.submitList(segments)
     }
     
     /** Play a specific segment */
@@ -104,9 +156,14 @@ class PlaybackActivity : AppCompatActivity() {
             }
             
             currentSegment = segment
-            Log.d(TAG, "Started playing segment: ${segment.filePath}")
+            btnPlayPause.isEnabled = true
+            btnStop.isEnabled = true
+            seekBar.isEnabled = true
+            seekBar.max = getDuration()
+            tvTotalTime.text = formatMs(getDuration().toLong())
+            tvCurrentTime.text = formatMs(0)
             
-            // TODO: Update UI to show playing state
+            Log.d(TAG, "Started playing segment: ${segment.filePath}")
             
         } catch (e: Exception) {
             Log.e(TAG, "Error playing segment", e)
@@ -119,7 +176,6 @@ class PlaybackActivity : AppCompatActivity() {
             if (player.isPlaying) {
                 player.pause()
                 Log.d(TAG, "Playback paused")
-                // TODO: Update UI to show paused state
             }
         }
     }
@@ -133,7 +189,6 @@ class PlaybackActivity : AppCompatActivity() {
                 }
                 player.start()
                 Log.d(TAG, "Playback resumed")
-                // TODO: Update UI to show playing state
             }
         }
     }
@@ -149,8 +204,10 @@ class PlaybackActivity : AppCompatActivity() {
         mediaPlayer = null
         currentSegment = null
         abandonAudioFocus()
+        btnPlayPause.isEnabled = false
+        btnStop.isEnabled = false
+        seekBar.isEnabled = false
         Log.d(TAG, "Playback stopped")
-        // TODO: Update UI to show stopped state
     }
     
     private fun requestAudioFocus(): Boolean {
@@ -202,6 +259,12 @@ class PlaybackActivity : AppCompatActivity() {
     /** Check if currently playing */
     fun isPlaying(): Boolean {
         return mediaPlayer?.isPlaying ?: false
+    }
+    
+    private fun formatMs(ms: Long): String {
+        val minutes = ms / 60000
+        val seconds = (ms % 60000) / 1000
+        return String.format("%d:%02d", minutes, seconds)
     }
     
     companion object {
