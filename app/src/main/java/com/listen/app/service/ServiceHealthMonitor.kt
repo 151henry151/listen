@@ -163,7 +163,8 @@ class ServiceHealthMonitor(
     private suspend fun checkRecentActivity(): Boolean {
         return try {
             // Check if segments have been created recently
-            val recentSegments = segmentManager.getRecentSegments(5 * 60 * 1000L) // Last 5 minutes
+            // Using settings manager's placeholder method for now
+            val recentSegments = settings.getRecentSegments(5) // Last 5 segments
             recentSegments.isNotEmpty()
         } catch (e: Exception) {
             Log.e(TAG, "Error checking recent activity", e)

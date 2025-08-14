@@ -17,6 +17,10 @@ interface SegmentDao {
     @Query("SELECT * FROM segments WHERE startTime >= :startTime AND endTime <= :endTime ORDER BY startTime DESC")
     fun getSegmentsInRange(startTime: Long, endTime: Long): Flow<List<Segment>>
     
+    /** Get segments within a time range (suspend version) */
+    @Query("SELECT * FROM segments WHERE startTime >= :startTime AND endTime <= :endTime ORDER BY startTime DESC")
+    suspend fun getSegmentsInTimeRange(startTime: Long, endTime: Long): List<Segment>
+    
     /** Get segments older than the given timestamp */
     @Query("SELECT * FROM segments WHERE endTime < :timestamp ORDER BY startTime ASC")
     suspend fun getSegmentsOlderThan(timestamp: Long): List<Segment>

@@ -139,6 +139,65 @@ class StorageManager(private val context: Context) {
         return getAvailableStorage() >= requiredBytes
     }
     
+    /** Check if storage is healthy (no parameters) */
+    fun isStorageHealthy(): Boolean {
+        return getAvailableStorage() >= 1024 * 1024 * 10 // At least 10MB available
+    }
+    
+    /** Validate a file (check if it exists and has content) */
+    fun validateFile(filePath: String): Boolean {
+        return try {
+            val file = File(filePath)
+            if (!file.exists()) {
+                AppLog.w(TAG, "File does not exist: $filePath")
+                return false
+            }
+            
+            if (file.length() == 0L) {
+                AppLog.w(TAG, "File is empty: $filePath")
+                return false
+            }
+            
+            // Check if file is readable
+            if (!file.canRead()) {
+                AppLog.w(TAG, "File is not readable: $filePath")
+                return false
+            }
+            
+            true
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Error validating file: $filePath", e)
+            false
+        }
+    }
+    
+    /** Get storage health report */
+    fun getStorageHealthReport(): StorageHealthReport {
+        return try {
+            val currentUsage = getCurrentStorageUsage()
+            val availableSpace = getAvailableStorage()
+            val isWritable = segmentsDir.canWrite()
+            val fileCount = segmentsDir.listFiles()?.filter { it.isFile }?.size ?: 0
+            
+            StorageHealthReport(
+                currentUsage = currentUsage,
+                availableSpace = availableSpace,
+                isWritable = isWritable,
+                fileCount = fileCount,
+                isHealthy = isWritable && availableSpace > 1024 * 1024 * 10 // At least 10MB available
+            )
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Error generating storage health report", e)
+            StorageHealthReport(
+                currentUsage = 0L,
+                availableSpace = 0L,
+                isWritable = false,
+                fileCount = 0,
+                isHealthy = false
+            )
+        }
+    }
+    
     /** Emergency cleanup to free up space */
     fun emergencyCleanup(requiredBytes: Long): Long {
         val files = segmentsDir.listFiles()
@@ -166,4 +225,13 @@ class StorageManager(private val context: Context) {
     companion object {
         private const val TAG = "StorageManager"
     }
+    
+    /** Storage health report data class */
+    data class StorageHealthReport(
+        val currentUsage: Long,
+        val availableSpace: Long,
+        val isWritable: Boolean,
+        val fileCount: Int,
+        val isHealthy: Boolean
+    )
 } 

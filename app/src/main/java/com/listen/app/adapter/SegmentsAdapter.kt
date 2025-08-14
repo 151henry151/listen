@@ -34,45 +34,21 @@ class SegmentsAdapter(
         private val onSegmentClick: (Segment) -> Unit
     ) : RecyclerView.ViewHolder(itemView) {
 
-        private val tvSegmentTime: TextView = itemView.findViewById(R.id.tv_segment_time)
-        private val tvSegmentDuration: TextView = itemView.findViewById(R.id.tv_segment_duration)
-        private val tvSegmentSize: TextView = itemView.findViewById(R.id.tv_segment_size)
-        private val btnPlaySegment: Button = itemView.findViewById(R.id.btn_play_segment)
+        private val tvSegmentTime: TextView = itemView.findViewById(R.id.tv_time)
+        private val tvSegmentDuration: TextView = itemView.findViewById(R.id.tv_duration)
+        // Note: tv_segment_size and btn_play_segment don't exist in the layout
+        // We'll need to add them or modify the layout
 
         fun bind(segment: Segment) {
             // Set segment time
             tvSegmentTime.text = segment.getFormattedStartTime()
             
             // Set duration
-            tvSegmentDuration.text = itemView.context.getString(R.string.segment_duration, segment.getFormattedDuration())
+            tvSegmentDuration.text = segment.getFormattedDuration()
             
-            // Set file size
-            val file = File(segment.filePath)
-            val sizeText = if (file.exists()) {
-                val sizeKB = segment.fileSize / 1024
-                if (sizeKB >= 1024) {
-                    val sizeMB = sizeKB / 1024.0
-                    itemView.context.getString(R.string.segment_size_mb, sizeMB)
-                } else {
-                    itemView.context.getString(R.string.segment_size_kb, sizeKB)
-                }
-            } else {
-                itemView.context.getString(R.string.segment_size_unknown)
-            }
-            tvSegmentSize.text = sizeText
-            
-            // Set click listener
-            btnPlaySegment.setOnClickListener {
+            // Set click listener on the entire item
+            itemView.setOnClickListener {
                 onSegmentClick(segment)
-            }
-            
-            // Check if file exists and update button state
-            val fileExists = file.exists()
-            btnPlaySegment.isEnabled = fileExists
-            btnPlaySegment.text = if (fileExists) {
-                itemView.context.getString(R.string.btn_play_segment)
-            } else {
-                itemView.context.getString(R.string.segment_missing)
             }
         }
     }
