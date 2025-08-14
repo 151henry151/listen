@@ -87,7 +87,19 @@ class MainActivity : AppCompatActivity() {
     
     override fun onResume() {
         super.onResume()
-        registerReceiver(statusReceiver, IntentFilter(ListenForegroundService.ACTION_RECORDING_STATUS))
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                statusReceiver,
+                IntentFilter(ListenForegroundService.ACTION_RECORDING_STATUS),
+                Context.RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(
+                statusReceiver,
+                IntentFilter(ListenForegroundService.ACTION_RECORDING_STATUS)
+            )
+        }
         updateUI()
     }
     
