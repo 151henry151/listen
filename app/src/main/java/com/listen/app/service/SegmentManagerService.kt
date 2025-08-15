@@ -34,7 +34,7 @@ class SegmentManagerService(
     }
     
     /** Add a new completed segment to the database */
-    fun addSegment(file: File, startTime: Long, duration: Long) {
+    fun addSegment(file: File, startTime: Long, duration: Long, isPhoneCall: Boolean = false, callDirection: String? = null, phoneNumber: String? = null) {
         scope.launch {
             try {
                 val endTime = startTime + duration
@@ -45,7 +45,10 @@ class SegmentManagerService(
                     startTime = startTime,
                     endTime = endTime,
                     duration = duration,
-                    fileSize = fileSize
+                    fileSize = fileSize,
+                    isPhoneCall = isPhoneCall,
+                    callDirection = callDirection,
+                    phoneNumber = phoneNumber
                 )
                 
                 val segmentId = segmentDao.insertSegment(segment)

@@ -16,6 +16,7 @@ class SegmentAdapter(
 	class SegmentViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 		val tvTime: TextView = itemView.findViewById(R.id.tv_time)
 		val tvDuration: TextView = itemView.findViewById(R.id.tv_duration)
+		val tvCallBadge: TextView? = itemView.findViewById(R.id.tv_call_badge)
 	}
 
 	override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SegmentViewHolder {
@@ -27,6 +28,14 @@ class SegmentAdapter(
 		val segment = items[position]
 		holder.tvTime.text = segment.getFormattedStartTime()
 		holder.tvDuration.text = segment.getFormattedDuration()
+		if (segment.isPhoneCall) {
+			val dir = segment.callDirection ?: "CALL"
+			val num = segment.phoneNumber ?: ""
+			holder.tvCallBadge?.visibility = View.VISIBLE
+			holder.tvCallBadge?.text = if (num.isNotEmpty()) "$dir: $num" else dir
+		} else {
+			holder.tvCallBadge?.visibility = View.GONE
+		}
 		holder.itemView.setOnClickListener { onClick(segment) }
 	}
 

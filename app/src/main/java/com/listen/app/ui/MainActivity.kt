@@ -24,9 +24,7 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.appcompat.app.AlertDialog
 import com.listen.app.util.AppLog
-import android.Manifest
 import android.app.ActivityManager
-import android.app.BatteryManager
 
 /**
  * Main activity with dashboard and service controls
@@ -60,6 +58,24 @@ class MainActivity : AppCompatActivity() {
         } else {
             AppLog.w(TAG, "Notification permission denied")
         }
+        // After notification prompt, request phone state as well
+        requestPhoneStatePermissionOrStart()
+    }
+
+    private val requestPhoneStatePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (!isGranted) {
+            AppLog.w(TAG, "READ_PHONE_STATE denied; call metadata unavailable")
+        }
+        // Next, request READ_CALL_LOG (optional)
+        requestCallLogPermissionIfNeeded()
+    }
+
+    private val requestCallLogPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        // Regardless of grant/deny, proceed to start service
         checkAndStartService()
     }
     
@@ -168,14 +184,36 @@ class MainActivity : AppCompatActivity() {
                     Manifest.permission.POST_NOTIFICATIONS
                 ) == PackageManager.PERMISSION_GRANTED -> {
                     AppLog.d(TAG, "Notification permission already granted")
-                    checkAndStartService()
+                    requestPhoneStatePermissionOrStart()
                 }
                 else -> {
                     requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             }
         } else {
+            requestPhoneStatePermissionOrStart()
+        }
+    }
+
+    private fun requestPhoneStatePermissionOrStart() {
+        when {
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_PHONE_STATE
+            ) == PackageManager.PERMISSION_GRANTED -> {
+                requestCallLogPermissionIfNeeded()
+            }
+            else -> {
+                requestPhoneStatePermissionLauncher.launch(Manifest.permission.READ_PHONE_STATE)
+            }
+        }
+    }
+
+    private fun requestCallLogPermissionIfNeeded() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) {
             checkAndStartService()
+        } else {
+            requestCallLogPermissionLauncher.launch(Manifest.permission.READ_CALL_LOG)
         }
     }
     

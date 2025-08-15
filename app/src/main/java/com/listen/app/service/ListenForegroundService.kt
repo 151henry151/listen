@@ -29,6 +29,13 @@ import com.listen.app.util.AppLog
 import android.provider.Settings as AndroidSettings
 import android.net.Uri
 import com.listen.app.perf.PerformanceMonitor
+import android.Manifest
+import android.content.pm.PackageManager
+import android.telephony.PhoneStateListener
+import android.telephony.TelephonyManager
+import androidx.core.content.ContextCompat
+import android.provider.CallLog
+import android.database.Cursor
 
 /**
  * Main foreground service that orchestrates background audio recording
@@ -54,6 +61,16 @@ class ListenForegroundService : Service() {
     private var statusBroadcastJobActive = false
     
     private var wakeLock: PowerManager.WakeLock? = null
+
+    // Telephony
+    private var telephonyManager: TelephonyManager? = null
+    private var phoneStateListener: PhoneStateListener? = null
+    private var isCallActive: Boolean = false
+    private var lastState: Int = TelephonyManager.CALL_STATE_IDLE
+    private var sawRingingBeforeOffhook: Boolean = false
+    private var currentCallDirection: String? = null // INCOMING or OUTGOING
+    private var currentCallNumber: String? = null
+    private var currentSegmentIsPhoneCall: Boolean = false
     
     companion object {
         private const val TAG = "ListenForegroundService"
@@ -112,7 +129,11 @@ class ListenForegroundService : Service() {
         
         // Set up audio recorder callback
         audioRecorder.onSegmentCompleted = { file, startTime, duration ->
-            segmentManager.addSegment(file, startTime, duration)
+            // Pass call metadata if this segment corresponds to a phone call
+            val isCall = currentSegmentIsPhoneCall
+            val dir = if (isCall) currentCallDirection else null
+            val num = if (isCall) currentCallNumber else null
+            segmentManager.addSegment(file, startTime, duration, isCall, dir, num)
             // Record rotation performance
             performanceMonitor?.recordSegmentRotation(duration)
             // Update notification content subtly to show recent rotation
@@ -121,6 +142,9 @@ class ListenForegroundService : Service() {
         
         // Create notification channel
         createNotificationChannel()
+
+        // Initialize telephony listener to handle call start/end
+        initTelephonyMonitoring()
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -181,6 +205,7 @@ class ListenForegroundService : Service() {
         segmentManager.cancel()
         releaseWakeLock()
         performanceMonitor?.stop()
+        unregisterTelephonyMonitoring()
         isServiceRunning = false
         serviceScope.cancel()
         super.onDestroy()
@@ -271,6 +296,7 @@ class ListenForegroundService : Service() {
     /** Start audio recording */
     private fun startRecording(): Boolean {
         val success = audioRecorder.startRecording()
+        currentSegmentIsPhoneCall = false
         broadcastStatus()
         return success
     }
@@ -468,6 +494,147 @@ class ListenForegroundService : Service() {
             }
         } catch (e: Exception) {
             AppLog.w(TAG, "Battery optimization request failed", e)
+        }
+    }
+
+    // Telephony monitoring
+    private fun initTelephonyMonitoring() {
+        try {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+                AppLog.w(TAG, "READ_PHONE_STATE not granted; call metadata and truncation on calls may be unavailable")
+                return
+            }
+            telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+            phoneStateListener = object : PhoneStateListener() {
+                override fun onCallStateChanged(state: Int, phoneNumber: String?) {
+                    handleCallStateChanged(state, phoneNumber)
+                }
+            }
+            @Suppress("DEPRECATION")
+            telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+            AppLog.d(TAG, "Telephony monitoring initialized")
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Failed to initialize telephony monitoring", e)
+        }
+    }
+
+    private fun unregisterTelephonyMonitoring() {
+        try {
+            telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
+        } catch (_: Exception) { }
+        phoneStateListener = null
+        telephonyManager = null
+    }
+
+    private fun handleCallStateChanged(state: Int, number: String?) {
+        when (state) {
+            TelephonyManager.CALL_STATE_RINGING -> {
+                sawRingingBeforeOffhook = true
+                currentCallNumber = number
+                lastState = state
+                AppLog.d(TAG, "Phone ringing: $number")
+            }
+            TelephonyManager.CALL_STATE_OFFHOOK -> {
+                if (!isCallActive) {
+                    val direction = if (sawRingingBeforeOffhook) "INCOMING" else "OUTGOING"
+                    onCallStarted(direction, currentCallNumber)
+                }
+                lastState = state
+            }
+            TelephonyManager.CALL_STATE_IDLE -> {
+                if (isCallActive) {
+                    onCallEnded()
+                }
+                lastState = state
+                sawRingingBeforeOffhook = false
+                currentCallNumber = null
+            }
+        }
+    }
+
+    private fun onCallStarted(direction: String, number: String?) {
+        AppLog.d(TAG, "Call started ($direction) ${number ?: ""}")
+        isCallActive = true
+        currentCallDirection = direction
+        currentCallNumber = number
+
+        // Try to resolve outgoing dialed number if missing
+        if (direction == "OUTGOING" && currentCallNumber.isNullOrEmpty()) {
+            currentCallNumber = resolveRecentOutgoingNumber()
+        }
+        
+        // 1) Truncate current ambient segment at call start
+        try {
+            if (audioRecorder.isRecording()) {
+                audioRecorder.stopRecording()
+            }
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Failed to stop ambient recording on call start", e)
+        }
+        
+        // 2) Disable periodic rotation; we want a single call segment
+        stopInServiceRotationScheduler()
+        
+        // 3) Start call recording segment (best-effort; capture may be limited on modern Android)
+        currentSegmentIsPhoneCall = true
+        val started = audioRecorder.startRecording()
+        if (started) {
+            updateNotification("Recording call… ${direction}${if (!currentCallNumber.isNullOrEmpty()) ": ${currentCallNumber}" else ""}")
+        } else {
+            updateNotification("Call recording not supported on this device")
+        }
+    }
+
+    private fun onCallEnded() {
+        AppLog.d(TAG, "Call ended")
+        // Finalize the call segment
+        try {
+            if (audioRecorder.isRecording()) {
+                audioRecorder.stopRecording()
+            }
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Failed to stop call recording", e)
+        }
+        
+        // Reset call flags
+        isCallActive = false
+        currentSegmentIsPhoneCall = false
+        val lastDirection = currentCallDirection
+        val lastNumber = currentCallNumber
+        currentCallDirection = null
+        currentCallNumber = null
+        
+        // 4) Resume ambient recording and periodic rotation
+        val started = startRecording()
+        if (started) {
+            startInServiceRotationScheduler()
+            updateNotification("Recording… resumed after call${if (!lastDirection.isNullOrEmpty()) " ($lastDirection)" else ""}")
+        } else {
+            updateNotification("Recording failed to resume after call")
+        }
+    }
+
+    private fun resolveRecentOutgoingNumber(): String? {
+        return try {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
+                return null
+            }
+            val uri = CallLog.Calls.CONTENT_URI
+            val projection = arrayOf(CallLog.Calls.NUMBER, CallLog.Calls.DATE, CallLog.Calls.TYPE)
+            val selection = "${CallLog.Calls.TYPE} = ?"
+            val selectionArgs = arrayOf(CallLog.Calls.OUTGOING_TYPE.toString())
+            val sortOrder = CallLog.Calls.DATE + " DESC LIMIT 1"
+            val cursor: Cursor? = contentResolver.query(uri, projection, selection, selectionArgs, sortOrder)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val numberIdx = it.getColumnIndexOrThrow(CallLog.Calls.NUMBER)
+                    return it.getString(numberIdx)
+                }
+            }
+            null
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Failed to resolve outgoing number from call log", e)
+            null
         }
     }
 } 
