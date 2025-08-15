@@ -24,6 +24,9 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.appcompat.app.AlertDialog
 import com.listen.app.util.AppLog
+import android.Manifest
+import android.app.ActivityManager
+import android.app.BatteryManager
 
 /**
  * Main activity with dashboard and service controls
@@ -34,6 +37,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var settings: SettingsManager
     private lateinit var database: ListenDatabase
     private lateinit var storageManager: StorageManager
+    
+    private var lastStatusBroadcastTime: Long = 0
     
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -61,6 +66,7 @@ class MainActivity : AppCompatActivity() {
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ListenForegroundService.ACTION_RECORDING_STATUS) {
+                lastStatusBroadcastTime = System.currentTimeMillis()
                 val isRecording = intent.getBooleanExtra(ListenForegroundService.EXTRA_IS_RECORDING, false)
                 val elapsed = intent.getLongExtra(ListenForegroundService.EXTRA_ELAPSED_MS, 0L)
                 updateRecordingStatus(isRecording, elapsed)
@@ -200,7 +206,8 @@ class MainActivity : AppCompatActivity() {
     private fun updateUI() {
         lifecycleScope.launch {
             try {
-                // Update service status
+                // Check actual service state
+                val isServiceActuallyRunning = isServiceActuallyRunning()
                 val isServiceEnabled = settings.isServiceEnabled
                 
                 // Update storage information
@@ -208,17 +215,24 @@ class MainActivity : AppCompatActivity() {
                 val availableStorage = storageManager.getFormattedAvailableStorage()
                 val segmentCount = database.segmentDao().getSegmentCount()
                 
-                // Update UI elements
-                binding.tvServiceStatus.text = if (isServiceEnabled) {
-                    getString(R.string.status_service_running)
-                } else {
-                    getString(R.string.status_service_stopped)
+                // Update UI elements based on actual service state
+                binding.tvServiceStatus.text = when {
+                    isServiceActuallyRunning -> getString(R.string.status_service_running)
+                    isServiceEnabled -> getString(R.string.status_service_starting)
+                    else -> getString(R.string.status_service_stopped)
                 }
                 
+                // Update button text based on settings (what user wants)
                 binding.btnStartStop.text = if (isServiceEnabled) {
                     getString(R.string.btn_stop_recording)
                 } else {
                     getString(R.string.btn_start_recording)
+                }
+                
+                // If service should be running but isn't, try to restart it
+                if (isServiceEnabled && !isServiceActuallyRunning) {
+                    AppLog.w(TAG, "Service should be running but isn't - attempting restart")
+                    ListenForegroundService.start(this@MainActivity)
                 }
                 
                 binding.tvStorageUsage.text = storageStats
@@ -227,7 +241,7 @@ class MainActivity : AppCompatActivity() {
                 
                 maybeWarnLowStorage()
                 
-                AppLog.d(TAG, "Service enabled: $isServiceEnabled")
+                AppLog.d(TAG, "Service enabled: $isServiceEnabled, Actually running: $isServiceActuallyRunning")
                 AppLog.d(TAG, "Storage usage: $storageStats")
                 AppLog.d(TAG, "Available storage: $availableStorage")
                 
@@ -245,6 +259,15 @@ class MainActivity : AppCompatActivity() {
         } else {
             getString(R.string.status_stopped)
         }
+        
+        // Update service status to show it's actually running
+        val isServiceActuallyRunning = isServiceActuallyRunning()
+        binding.tvServiceStatus.text = when {
+            isServiceActuallyRunning -> getString(R.string.status_service_running)
+            settings.isServiceEnabled -> getString(R.string.status_service_starting)
+            else -> getString(R.string.status_service_stopped)
+        }
+        
         // Keep start/stop label in sync with serviceEnabled toggle
         binding.btnStartStop.text = if (settings.isServiceEnabled) {
             getString(R.string.btn_stop_recording)
@@ -275,9 +298,39 @@ class MainActivity : AppCompatActivity() {
     /** Stop the recording service */
     fun stopService() {
         settings.isServiceEnabled = false
+        lastStatusBroadcastTime = 0  // Reset broadcast tracking
         ListenForegroundService.stop(this)
         Toast.makeText(this, getString(R.string.msg_service_stopped), Toast.LENGTH_SHORT).show()
         updateUI()
+    }
+    
+    /** Check if the service is actually running */
+    private fun isServiceActuallyRunning(): Boolean {
+        return try {
+            // For API 26+ getRunningServices is deprecated and may not work reliably
+            // So we combine multiple approaches
+            
+            // Method 1: Try using ActivityManager (works on older devices)
+            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            @Suppress("DEPRECATION")
+            val runningServices = activityManager.getRunningServices(50)
+            
+            val isRunningViaActivityManager = runningServices.any { 
+                it.service.className == ListenForegroundService::class.java.name 
+            }
+            
+            // Method 2: Check if we're receiving broadcasts (more reliable indicator)
+            // If we've received a broadcast in the last 3 seconds, service is likely running
+            val lastBroadcast = lastStatusBroadcastTime
+            val isReceivingBroadcasts = lastBroadcast > 0 && 
+                (System.currentTimeMillis() - lastBroadcast) < 3000
+            
+            // Return true if either method indicates the service is running
+            isRunningViaActivityManager || isReceivingBroadcasts
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Error checking service status", e)
+            false
+        }
     }
     
     private fun promptBatteryOptimizationIfNeeded() {
