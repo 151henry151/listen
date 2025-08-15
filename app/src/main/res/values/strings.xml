@@ -15,6 +15,9 @@
     <string name="status_service_running">Service Running</string>
     <string name="status_service_stopped">Service Stopped</string>
     <string name="status_service_starting">Service Starting...</string>
+    <string name="section_status">Status</string>
+    <string name="label_recording">Recording</string>
+    <string name="default_recording_status">Recording: Stopped</string>
     
     <!-- Storage -->
     <string name="storage_usage">Storage Usage</string>
