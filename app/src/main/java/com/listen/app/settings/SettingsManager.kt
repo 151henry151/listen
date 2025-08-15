@@ -48,6 +48,11 @@ class SettingsManager(context: Context) {
         get() = prefs.getBoolean(KEY_AUTO_START_BOOT, true)
         set(value) = prefs.edit { putBoolean(KEY_AUTO_START_BOOT, value) }
     
+    /** Whether recording was active when the device shut down */
+    var wasRecordingOnShutdown: Boolean
+        get() = prefs.getBoolean(KEY_WAS_RECORDING_ON_SHUTDOWN, false)
+        set(value) = prefs.edit { putBoolean(KEY_WAS_RECORDING_ON_SHUTDOWN, value) }
+    
     /** Last service start time */
     var lastServiceStartTime: Long
         get() = prefs.getLong(KEY_LAST_SERVICE_START, 0)
@@ -120,6 +125,7 @@ class SettingsManager(context: Context) {
         private const val KEY_AUDIO_SAMPLE_RATE = "audio_sample_rate"
         private const val KEY_MAX_STORAGE = "max_storage"
         private const val KEY_AUTO_START_BOOT = "auto_start_boot"
+        private const val KEY_WAS_RECORDING_ON_SHUTDOWN = "was_recording_on_shutdown"
         private const val KEY_LAST_SERVICE_START = "last_service_start"
         private const val KEY_POWER_SAVING_MODE = "power_saving_mode"
         private const val KEY_ADAPTIVE_PERFORMANCE = "adaptive_performance"

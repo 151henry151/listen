@@ -27,8 +27,13 @@ class ListenBootReceiver : BroadcastReceiver() {
                 
                 val settings = SettingsManager(context)
                 
-                // Check if service should auto-start
-                if (settings.isServiceEnabled && settings.autoStartOnBoot) {
+                // Check if we should resume recording after boot
+                // This happens if:
+                // 1. Recording was active when the device shut down
+                // 2. Auto-start on boot is enabled
+                val shouldResumeRecording = settings.wasRecordingOnShutdown && settings.autoStartOnBoot
+                
+                if (shouldResumeRecording) {
                     // Verify microphone permission is granted before starting
                     val micGranted = ContextCompat.checkSelfPermission(
                         context, Manifest.permission.RECORD_AUDIO
@@ -38,20 +43,26 @@ class ListenBootReceiver : BroadcastReceiver() {
                         return
                     }
                     
-                    AppLog.d(TAG, "Auto-starting Listen service after boot")
+                    AppLog.d(TAG, "Resuming recording after boot (was recording on shutdown)")
                     
                     // Delay restart to allow system to stabilize
                     Handler(Looper.getMainLooper()).postDelayed({
                         try {
+                            // Re-enable the service flag since we're resuming
+                            settings.isServiceEnabled = true
                             ListenForegroundService.start(context)
-                            AppLog.d(TAG, "Service auto-started successfully")
+                            // Clear the flag now that we've resumed
+                            settings.wasRecordingOnShutdown = false
+                            AppLog.d(TAG, "Recording resumed successfully after boot")
                         } catch (e: Exception) {
-                            AppLog.e(TAG, "Failed to auto-start service", e)
+                            AppLog.e(TAG, "Failed to resume recording after boot", e)
+                            // Clear the flag even on failure to avoid repeated attempts
+                            settings.wasRecordingOnShutdown = false
                         }
                     }, BOOT_DELAY_MS)
                     
                 } else {
-                    AppLog.d(TAG, "Service auto-start disabled or service not enabled")
+                    AppLog.d(TAG, "Recording not resumed: wasRecording=${settings.wasRecordingOnShutdown}, autoStart=${settings.autoStartOnBoot}")
                 }
             }
         }

@@ -140,6 +140,8 @@ class ListenForegroundService : Service() {
             applyAdaptiveBehavior()
             val started = startRecording()
             if (started) {
+                // Mark that recording is active (for boot recovery)
+                settings.wasRecordingOnShutdown = true
                 startInServiceRotationScheduler()
                 startStatusBroadcasts()
                 performanceMonitor?.start(serviceScope)
@@ -157,6 +159,21 @@ class ListenForegroundService : Service() {
     
     override fun onDestroy() {
         AppLog.d(TAG, "Service destroyed")
+        
+        // Check if this is a user-initiated stop vs system shutdown
+        // If isServiceEnabled is false, the user stopped it manually
+        // If true, this is likely a system shutdown/crash
+        if (!settings.isServiceEnabled) {
+            // User stopped the service manually
+            settings.wasRecordingOnShutdown = false
+            AppLog.d(TAG, "Service stopped by user - clearing shutdown flag")
+        } else {
+            // Service is being destroyed but isServiceEnabled is still true
+            // This means it's a system shutdown or crash
+            // Keep wasRecordingOnShutdown as true so we can resume on boot
+            AppLog.d(TAG, "Service destroyed unexpectedly - keeping shutdown flag")
+        }
+        
         stopStatusBroadcasts()
         stopInServiceRotationScheduler()
         stopRecording()
