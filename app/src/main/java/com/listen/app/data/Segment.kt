@@ -25,6 +25,15 @@ data class Segment(
     
     /** File size in bytes */
     val fileSize: Long,
+
+    /** Whether this segment is a phone call recording */
+    val isPhoneCall: Boolean = false,
+
+    /** Direction of call when isPhoneCall is true: "INCOMING" or "OUTGOING" */
+    val callDirection: String? = null,
+
+    /** Caller ID (incoming) or dialed number (outgoing) when available */
+    val phoneNumber: String? = null,
     
     /** Creation timestamp */
     val createdAt: Long = System.currentTimeMillis()
