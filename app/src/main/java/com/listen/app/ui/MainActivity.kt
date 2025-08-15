@@ -221,6 +221,12 @@ class MainActivity : AppCompatActivity() {
                     isServiceEnabled -> getString(R.string.status_service_starting)
                     else -> getString(R.string.status_service_stopped)
                 }
+                val serviceColorRes = when {
+                    isServiceActuallyRunning -> R.color.status_running_green
+                    isServiceEnabled -> R.color.status_starting_orange
+                    else -> R.color.stopped_gray
+                }
+                binding.tvServiceStatus.setTextColor(ContextCompat.getColor(this@MainActivity, serviceColorRes))
                 
                 // Update button text based on settings (what user wants)
                 binding.btnStartStop.text = if (isServiceEnabled) {
@@ -255,10 +261,12 @@ class MainActivity : AppCompatActivity() {
         val minutes = elapsedMs / 60000
         val seconds = (elapsedMs % 60000) / 1000
         binding.tvRecordingStatus.text = if (isRecording) {
-            getString(R.string.status_recording) + "  ${minutes}:${String.format("%02d", seconds)}"
+            getString(R.string.label_recording) + ":  ${minutes}:${String.format("%02d", seconds)}"
         } else {
-            getString(R.string.status_stopped)
+            getString(R.string.label_recording) + ": " + getString(R.string.status_stopped)
         }
+        val recordingColorRes = if (isRecording) R.color.recording_red else R.color.stopped_gray
+        binding.tvRecordingStatus.setTextColor(ContextCompat.getColor(this, recordingColorRes))
         
         // Update service status to show it's actually running
         val isServiceActuallyRunning = isServiceActuallyRunning()
