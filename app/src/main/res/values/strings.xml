@@ -14,6 +14,7 @@
     <string name="status_stopped">Stopped</string>
     <string name="status_service_running">Service Running</string>
     <string name="status_service_stopped">Service Stopped</string>
+    <string name="status_service_starting">Service Starting...</string>
     
     <!-- Storage -->
     <string name="storage_usage">Storage Usage</string>
