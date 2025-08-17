@@ -172,6 +172,15 @@ class AudioRecorderService(
         }
     }
     
+    /** Get current max amplitude (0..32767). Returns 0 if unavailable. */
+    fun getMaxAmplitude(): Int {
+        return try {
+            mediaRecorder?.maxAmplitude ?: 0
+        } catch (_: Exception) {
+            0
+        }
+    }
+    
     /** Get current segment file */
     fun getCurrentSegmentFile(): File? = currentSegmentFile
     
