@@ -1,6 +1,7 @@
 package com.listen.app.ui
 
 import android.os.Bundle
+import android.text.InputType
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Switch
@@ -25,6 +26,7 @@ class SettingsActivity : AppCompatActivity() {
 		val swAutoStart: Switch = findViewById(R.id.sw_auto_start)
 		val swPowerSaving: Switch = findViewById(R.id.sw_power_saving)
 		val swAdaptive: Switch = findViewById(R.id.sw_adaptive)
+		val swAutoMusic: Switch = findViewById(R.id.sw_auto_music)
 		val btnSave: Button = findViewById(R.id.btn_save_settings)
 		
 		// Pre-fill current values
@@ -36,6 +38,14 @@ class SettingsActivity : AppCompatActivity() {
 		swAutoStart.isChecked = settings.autoStartOnBoot
 		swPowerSaving.isChecked = settings.powerSavingModeEnabled
 		swAdaptive.isChecked = settings.adaptivePerformanceEnabled
+		swAutoMusic.isChecked = settings.autoMusicModeEnabled
+		
+		// Disable manual input when auto mode is enabled (visual hint)
+		fun updateSegmentDurationEnabled() {
+			etSegmentDuration.isEnabled = !swAutoMusic.isChecked
+		}
+		swAutoMusic.setOnCheckedChangeListener { _, _ -> updateSegmentDurationEnabled() }
+		updateSegmentDurationEnabled()
 		
 		btnSave.setOnClickListener {
 			settings.segmentDurationSeconds = etSegmentDuration.text.toString().toIntOrNull() ?: settings.segmentDurationSeconds
@@ -46,6 +56,7 @@ class SettingsActivity : AppCompatActivity() {
 			swAutoStart.isChecked.also { settings.autoStartOnBoot = it }
 			swPowerSaving.isChecked.also { settings.powerSavingModeEnabled = it }
 			swAdaptive.isChecked.also { settings.adaptivePerformanceEnabled = it }
+			swAutoMusic.isChecked.also { settings.autoMusicModeEnabled = it }
 			
 			// Notify running service to apply new settings
 			ListenForegroundService.applyUpdatedSettings(this)
