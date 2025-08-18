@@ -85,6 +85,13 @@ class ListenForegroundService : Service() {
         // Commands
         const val ACTION_UPDATE_SETTINGS = "com.listen.app.ACTION_UPDATE_SETTINGS"
         
+        // Auto music mode heuristics
+        private const val AUTO_MUSIC_POLL_INTERVAL_MS = 100L
+        private const val AUTO_MUSIC_SILENCE_MIN_MS = 1200L
+        private const val AUTO_MUSIC_MAX_EXTRA_WAIT_MS = 180_000L // 3 minutes after target
+        private const val AUTO_MUSIC_MIN_THRESHOLD = 800
+        private const val AUTO_MUSIC_RELATIVE_SILENCE_FACTOR = 0.35
+        
         /** Start the service */
         fun start(context: Context) {
             val intent = Intent(context, ListenForegroundService::class.java)
@@ -334,14 +341,52 @@ class ListenForegroundService : Service() {
         rotationJobActive = true
         serviceScope.launch {
             while (isActive && isServiceRunning) {
-                val segmentDuration = settings.segmentDurationSeconds.toLong().coerceAtLeast(1L)
-                delay(segmentDuration * 1000L)
                 try {
-                    val before = System.currentTimeMillis()
-                    audioRecorder.rotateSegment()
-                    val after = System.currentTimeMillis()
-                    performanceMonitor?.recordSegmentRotation(after - before)
-                    broadcastStatus()
+                    if (!settings.autoMusicModeEnabled) {
+                        val segmentDuration = settings.segmentDurationSeconds.toLong().coerceAtLeast(1L)
+                        delay(segmentDuration * 1000L)
+                        val before = System.currentTimeMillis()
+                        audioRecorder.rotateSegment()
+                        val after = System.currentTimeMillis()
+                        performanceMonitor?.recordSegmentRotation(after - before)
+                        broadcastStatus()
+                    } else {
+                        val targetMs = SettingsManager.AUTO_MUSIC_TARGET_SECONDS * 1000L
+                        // Wait until we reach at least the target duration
+                        while (isActive && isServiceRunning && audioRecorder.getCurrentRecordingDuration() < targetMs) {
+                            delay(250L)
+                            if (!settings.autoMusicModeEnabled) break
+                        }
+                        if (!settings.autoMusicModeEnabled) {
+                            // Mode toggled off; restart loop to use fixed scheduler path
+                            continue
+                        }
+                        // After target, look for a silence window
+                        var emaAmplitude = 0.0
+                        var consecutiveSilenceMs = 0L
+                        val maxSegmentMs = targetMs + AUTO_MUSIC_MAX_EXTRA_WAIT_MS
+                        while (isActive && isServiceRunning && audioRecorder.getCurrentRecordingDuration() < maxSegmentMs) {
+                            val amp = audioRecorder.getMaxAmplitude().coerceAtLeast(0)
+                            // Exponential moving average to adapt threshold
+                            emaAmplitude = if (emaAmplitude == 0.0) amp.toDouble() else (0.9 * emaAmplitude + 0.1 * amp)
+                            val dynamicThreshold = maxOf(AUTO_MUSIC_MIN_THRESHOLD.toDouble(), emaAmplitude * AUTO_MUSIC_RELATIVE_SILENCE_FACTOR).toInt()
+                            if (amp < dynamicThreshold) {
+                                consecutiveSilenceMs += AUTO_MUSIC_POLL_INTERVAL_MS
+                                if (consecutiveSilenceMs >= AUTO_MUSIC_SILENCE_MIN_MS) {
+                                    break
+                                }
+                            } else {
+                                consecutiveSilenceMs = 0L
+                            }
+                            delay(AUTO_MUSIC_POLL_INTERVAL_MS)
+                            if (!settings.autoMusicModeEnabled) break
+                        }
+                        val before = System.currentTimeMillis()
+                        audioRecorder.rotateSegment()
+                        val after = System.currentTimeMillis()
+                        performanceMonitor?.recordSegmentRotation(after - before)
+                        broadcastStatus()
+                    }
                 } catch (e: Exception) {
                     AppLog.e(TAG, "Error rotating segment", e)
                 }

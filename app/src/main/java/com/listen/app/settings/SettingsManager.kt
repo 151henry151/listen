@@ -23,6 +23,11 @@ class SettingsManager(context: Context) {
         get() = prefs.getInt(KEY_SEGMENT_DURATION, DEFAULT_SEGMENT_DURATION)
         set(value) = prefs.edit { putInt(KEY_SEGMENT_DURATION, value) }
     
+    /** Whether auto music mode is enabled */
+    var autoMusicModeEnabled: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_MUSIC_MODE, false)
+        set(value) = prefs.edit { putBoolean(KEY_AUTO_MUSIC_MODE, value) }
+    
     /** Retention period in minutes */
     var retentionPeriodMinutes: Int
         get() = prefs.getInt(KEY_RETENTION_PERIOD, DEFAULT_RETENTION_PERIOD)
@@ -70,8 +75,9 @@ class SettingsManager(context: Context) {
     
     /** Calculate total storage usage for current settings */
     fun calculateStorageUsage(): Long {
-        val segmentSizeBytes = (audioBitrate.toLong() * 1000 * segmentDurationSeconds) / 8
-        val segmentsCount = (retentionPeriodMinutes * 60) / segmentDurationSeconds
+        val segmentSeconds = if (autoMusicModeEnabled) AUTO_MUSIC_TARGET_SECONDS else segmentDurationSeconds
+        val segmentSizeBytes = (audioBitrate.toLong() * 1000 * segmentSeconds) / 8
+        val segmentsCount = (retentionPeriodMinutes * 60) / segmentSeconds
         return segmentSizeBytes * segmentsCount
     }
     
@@ -120,6 +126,7 @@ class SettingsManager(context: Context) {
         // Keys
         private const val KEY_SERVICE_ENABLED = "service_enabled"
         private const val KEY_SEGMENT_DURATION = "segment_duration"
+        private const val KEY_AUTO_MUSIC_MODE = "auto_music_mode"
         private const val KEY_RETENTION_PERIOD = "retention_period"
         private const val KEY_AUDIO_BITRATE = "audio_bitrate"
         private const val KEY_AUDIO_SAMPLE_RATE = "audio_sample_rate"
@@ -137,5 +144,6 @@ class SettingsManager(context: Context) {
         const val DEFAULT_AUDIO_BITRATE = 32 // 32 kbps
         const val DEFAULT_AUDIO_SAMPLE_RATE = 16000 // 16 kHz
         const val DEFAULT_MAX_STORAGE = 100 // 100 MB
+        const val AUTO_MUSIC_TARGET_SECONDS = 120 // ~2 minutes
     }
 } 
