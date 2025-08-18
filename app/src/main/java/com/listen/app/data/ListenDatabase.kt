@@ -46,6 +46,7 @@ abstract class ListenDatabase : RoomDatabase() {
                     "listen_database"
                 )
                 .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .fallbackToDestructiveMigration() // Add fallback for migration failures
                 .build()
                 INSTANCE = instance
                 instance

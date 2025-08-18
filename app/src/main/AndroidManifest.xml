@@ -51,7 +51,7 @@
             android:name=".service.ListenForegroundService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="microphone|phoneCall" />
+            android:foregroundServiceType="microphone" />
 
         <!-- Boot Receiver for auto-start -->
         <receiver

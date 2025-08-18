@@ -25,6 +25,7 @@ import android.provider.Settings
 import androidx.appcompat.app.AlertDialog
 import com.listen.app.util.AppLog
 import android.app.ActivityManager
+import java.io.File
 
 /**
  * Main activity with dashboard and service controls
@@ -43,10 +44,22 @@ class MainActivity : AppCompatActivity() {
     ) { isGranted ->
         if (isGranted) {
             AppLog.d(TAG, "Microphone permission granted")
-            requestNotificationPermission()
+            requestForegroundServicePermission()
         } else {
             AppLog.w(TAG, "Microphone permission denied")
             Toast.makeText(this, "Microphone permission required for recording", Toast.LENGTH_LONG).show()
+        }
+    }
+    
+    private val requestForegroundServicePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            AppLog.d(TAG, "Foreground service microphone permission granted")
+            requestNotificationPermission()
+        } else {
+            AppLog.w(TAG, "Foreground service microphone permission denied")
+            Toast.makeText(this, "Foreground service permission required for recording", Toast.LENGTH_LONG).show()
         }
     }
     
@@ -58,8 +71,8 @@ class MainActivity : AppCompatActivity() {
         } else {
             AppLog.w(TAG, "Notification permission denied")
         }
-        // After notification prompt, request phone state as well
-        requestPhoneStatePermissionOrStart()
+        // Skip phone call permissions for now
+        writeDebugLog("Skipping phone call permissions")
     }
 
     private val requestPhoneStatePermissionLauncher = registerForActivityResult(
@@ -92,19 +105,105 @@ class MainActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
         
-        // Initialize components
-        settings = SettingsManager(this)
-        database = ListenDatabase.getDatabase(this)
-        storageManager = StorageManager(this)
-        
-        // Set up UI
-        setupUI()
-        
-        // Check permissions and service status
-        checkPermissionsAndService()
+        try {
+            writeDebugLog("MainActivity onCreate started")
+            Log.d(TAG, "MainActivity onCreate started")
+            
+            // Step 1: View binding
+            try {
+                writeDebugLog("Starting view binding...")
+                binding = ActivityMainBinding.inflate(layoutInflater)
+                setContentView(binding.root)
+                writeDebugLog("View binding and content view set successfully")
+                Log.d(TAG, "View binding and content view set")
+            } catch (e: Exception) {
+                writeDebugLog("View binding failed: ${e.message}")
+                Log.e(TAG, "View binding failed", e)
+                throw e
+            }
+            
+            // Step 2: Initialize SettingsManager
+            try {
+                writeDebugLog("Initializing SettingsManager...")
+                settings = SettingsManager(this)
+                writeDebugLog("SettingsManager initialized successfully")
+                Log.d(TAG, "SettingsManager initialized")
+            } catch (e: Exception) {
+                writeDebugLog("SettingsManager initialization failed: ${e.message}")
+                Log.e(TAG, "SettingsManager initialization failed", e)
+                throw e
+            }
+            
+            // Step 3: Initialize database with fallback
+            try {
+                writeDebugLog("Initializing database...")
+                database = ListenDatabase.getDatabase(this)
+                writeDebugLog("Database initialized successfully")
+                Log.d(TAG, "Database initialized")
+            } catch (e: Exception) {
+                writeDebugLog("Database initialization failed: ${e.message}")
+                Log.e(TAG, "Database initialization failed", e)
+                // Continue without database for now
+                Toast.makeText(this, "Database unavailable - some features may not work", Toast.LENGTH_SHORT).show()
+            }
+            
+            // Step 4: Initialize StorageManager
+            try {
+                writeDebugLog("Initializing StorageManager...")
+                storageManager = StorageManager(this)
+                writeDebugLog("StorageManager initialized successfully")
+                Log.d(TAG, "StorageManager initialized")
+            } catch (e: Exception) {
+                writeDebugLog("StorageManager initialization failed: ${e.message}")
+                Log.e(TAG, "StorageManager initialization failed", e)
+                throw e
+            }
+            
+            // Step 5: Set up UI
+            try {
+                writeDebugLog("Setting up UI...")
+                setupUI()
+                writeDebugLog("UI setup completed successfully")
+                Log.d(TAG, "UI setup completed")
+            } catch (e: Exception) {
+                writeDebugLog("UI setup failed: ${e.message}")
+                Log.e(TAG, "UI setup failed", e)
+                throw e
+            }
+            
+            // Step 6: Check basic permissions
+            try {
+                writeDebugLog("Checking basic permissions...")
+                checkBasicPermissions()
+                writeDebugLog("Basic permissions check completed successfully")
+                Log.d(TAG, "Basic permissions check completed")
+            } catch (e: Exception) {
+                writeDebugLog("Basic permissions check failed: ${e.message}")
+                Log.e(TAG, "Basic permissions check failed", e)
+                throw e
+            }
+            
+            writeDebugLog("MainActivity onCreate completed successfully")
+            Log.d(TAG, "MainActivity onCreate completed successfully")
+        } catch (e: Exception) {
+            val errorMsg = "Error in MainActivity onCreate: ${e.message}"
+            Log.e(TAG, errorMsg, e)
+            writeDebugLog(errorMsg)
+            writeDebugLog(e.stackTraceToString())
+            throw e // Re-throw to see the crash
+        }
+    }
+    
+    private fun writeDebugLog(message: String) {
+        try {
+            val file = File(filesDir, "debug_log.txt")
+            val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+            val logEntry = "[$timestamp] MainActivity: $message\n"
+            file.appendText(logEntry)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to write debug log", e)
+        }
     }
     
     override fun onResume() {
@@ -154,6 +253,38 @@ class MainActivity : AppCompatActivity() {
         AppLog.d(TAG, "MainActivity UI setup completed")
     }
     
+    /** Check basic permissions only */
+    private fun checkBasicPermissions() {
+        when {
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED -> {
+                writeDebugLog("Microphone permission already granted")
+                AppLog.d(TAG, "Microphone permission already granted")
+                // Check foreground service permission for Android 14+
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    if (ContextCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.FOREGROUND_SERVICE_MICROPHONE
+                        ) != PackageManager.PERMISSION_GRANTED) {
+                        writeDebugLog("Requesting foreground service microphone permission")
+                        requestForegroundServicePermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE)
+                        return
+                    }
+                }
+            }
+            shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) -> {
+                writeDebugLog("Showing permission rationale")
+                showPermissionRationale()
+            }
+            else -> {
+                writeDebugLog("Requesting microphone permission")
+                requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        }
+    }
+    
     /** Check permissions and service status */
     private fun checkPermissionsAndService() {
         when {
@@ -175,6 +306,27 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
+    /** Request foreground service microphone permission for Android 14+ */
+    private fun requestForegroundServicePermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.FOREGROUND_SERVICE_MICROPHONE
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    AppLog.d(TAG, "Foreground service microphone permission already granted")
+                    requestNotificationPermission()
+                }
+                else -> {
+                    requestForegroundServicePermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE)
+                }
+            }
+        } else {
+            // For Android 13 and below, this permission is not required
+            requestNotificationPermission()
+        }
+    }
+
     /** Request notification permission for Android 13+ */
     private fun requestNotificationPermission() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -194,6 +346,8 @@ class MainActivity : AppCompatActivity() {
             requestPhoneStatePermissionOrStart()
         }
     }
+
+
 
     private fun requestPhoneStatePermissionOrStart() {
         when {
@@ -244,14 +398,41 @@ class MainActivity : AppCompatActivity() {
     private fun updateUI() {
         lifecycleScope.launch {
             try {
+                writeDebugLog("updateUI started")
+                
                 // Check actual service state
                 val isServiceActuallyRunning = isServiceActuallyRunning()
                 val isServiceEnabled = settings.isServiceEnabled
+                writeDebugLog("Service state checked: enabled=$isServiceEnabled, running=$isServiceActuallyRunning")
                 
-                // Update storage information
-                val storageStats = storageManager.getFormattedStorageUsage()
-                val availableStorage = storageManager.getFormattedAvailableStorage()
-                val segmentCount = database.segmentDao().getSegmentCount()
+                // Update storage information with error handling
+                val storageStats = try {
+                    storageManager.getFormattedStorageUsage()
+                } catch (e: Exception) {
+                    writeDebugLog("Storage stats failed: ${e.message}")
+                    "0 MB"
+                }
+                
+                val availableStorage = try {
+                    storageManager.getFormattedAvailableStorage()
+                } catch (e: Exception) {
+                    writeDebugLog("Available storage failed: ${e.message}")
+                    "0 MB"
+                }
+                
+                val segmentCount = try {
+                    if (::database.isInitialized) {
+                        database.segmentDao().getSegmentCount()
+                    } else {
+                        writeDebugLog("Database not initialized, using 0 for segment count")
+                        0
+                    }
+                } catch (e: Exception) {
+                    writeDebugLog("Segment count failed: ${e.message}")
+                    0
+                }
+                
+                writeDebugLog("Storage info retrieved: stats=$storageStats, available=$availableStorage, segments=$segmentCount")
                 
                 // Update UI elements based on actual service state
                 binding.tvServiceStatus.text = when {
@@ -289,8 +470,13 @@ class MainActivity : AppCompatActivity() {
                 AppLog.d(TAG, "Storage usage: $storageStats")
                 AppLog.d(TAG, "Available storage: $availableStorage")
                 
+                writeDebugLog("updateUI completed successfully")
+                
             } catch (e: Exception) {
-                AppLog.e(TAG, "Error updating UI", e)
+                val errorMsg = "Error updating UI: ${e.message}"
+                AppLog.e(TAG, errorMsg, e)
+                writeDebugLog(errorMsg)
+                writeDebugLog(e.stackTraceToString())
             }
         }
     }
@@ -328,6 +514,18 @@ class MainActivity : AppCompatActivity() {
                 this,
                 Manifest.permission.RECORD_AUDIO
             ) == PackageManager.PERMISSION_GRANTED) {
+            
+            // Check foreground service permission for Android 14+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                if (ContextCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.FOREGROUND_SERVICE_MICROPHONE
+                    ) != PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "Foreground service permission required", Toast.LENGTH_SHORT).show()
+                    requestForegroundServicePermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE)
+                    return
+                }
+            }
             
             settings.isServiceEnabled = true
             promptBatteryOptimizationIfNeeded()

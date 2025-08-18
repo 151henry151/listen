@@ -118,14 +118,28 @@ class ListenForegroundService : Service() {
         super.onCreate()
         AppLog.d(TAG, "Service created")
         
-        // Initialize components
-        settings = SettingsManager(this)
-        database = ListenDatabase.getDatabase(this)
-        storageManager = StorageManager(this)
-        audioRecorder = AudioRecorderService(this, storageManager)
-        segmentManager = SegmentManagerService(this, database, storageManager, settings)
-        workManager = WorkManager.getInstance(this)
-        performanceMonitor = PerformanceMonitor(this)
+        try {
+            // Initialize components
+            AppLog.d(TAG, "Initializing SettingsManager")
+            settings = SettingsManager(this)
+            
+            AppLog.d(TAG, "Initializing Database")
+            database = ListenDatabase.getDatabase(this)
+            
+            AppLog.d(TAG, "Initializing StorageManager")
+            storageManager = StorageManager(this)
+            
+            AppLog.d(TAG, "Initializing AudioRecorderService")
+            audioRecorder = AudioRecorderService(this, storageManager)
+            
+            AppLog.d(TAG, "Initializing SegmentManagerService")
+            segmentManager = SegmentManagerService(this, database, storageManager, settings)
+            
+            AppLog.d(TAG, "Initializing WorkManager")
+            workManager = WorkManager.getInstance(this)
+            
+            AppLog.d(TAG, "Initializing PerformanceMonitor")
+            performanceMonitor = PerformanceMonitor(this)
         
         // Set up audio recorder callback
         audioRecorder.onSegmentCompleted = { file, startTime, duration ->
@@ -143,8 +157,14 @@ class ListenForegroundService : Service() {
         // Create notification channel
         createNotificationChannel()
 
-        // Initialize telephony listener to handle call start/end
-        initTelephonyMonitoring()
+        // Temporarily disable telephony monitoring to prevent hangs
+        // initTelephonyMonitoring()
+        
+        AppLog.d(TAG, "Service onCreate completed successfully")
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Error in service onCreate", e)
+            throw e
+        }
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
