@@ -50,12 +50,8 @@ class AudioRecorderService(
                 segmentStartTime = System.currentTimeMillis()
                 
                 mediaRecorder = MediaRecorder().apply {
-                    // Prefer voice-optimized source when possible for power/clarity
-                    try {
-                        setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
-                    } catch (_: Exception) {
-                        setAudioSource(MediaRecorder.AudioSource.MIC)
-                    }
+                    // Use microphone directly for ambient audio recording
+                    setAudioSource(MediaRecorder.AudioSource.MIC)
                     setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                     setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                     setAudioSamplingRate(audioSampleRate)
