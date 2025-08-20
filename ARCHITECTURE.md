@@ -344,29 +344,38 @@ class ListenForegroundService : Service() {
 ## 📊 Audio Quality & Storage Optimization
 
 ### Audio Configuration Analysis
-**Recommended Settings for Speech Clarity**:
+**Quality Presets for Different Use Cases**:
 
-| Parameter | Value | Rationale |
-|-----------|-------|-----------|
-| Format | AAC | Best compression/quality ratio |
-| Sample Rate | 16kHz | Sufficient for speech (human speech: 85Hz-8kHz) |
-| Bit Depth | 16-bit | Standard, sufficient dynamic range |
-| Channels | Mono | Reduces file size 50%, sufficient for ambient audio |
-| Bitrate | 32kbps | Excellent speech quality, minimal storage |
+| Quality Level | Bitrate | Sample Rate | Use Case | Storage Impact |
+|---------------|---------|-------------|----------|----------------|
+| **Low Quality** | 16 kbps | 8 kHz | Telephone quality, battery optimization | Minimal |
+| **Medium Quality** | 32 kbps | 16 kHz | Standard speech recording | Balanced |
+| **High Quality** | 128 kbps | 44.1 kHz | CD quality, music recording | High |
+
+**Technical Specifications**:
+- **Format**: AAC (Advanced Audio Coding) - Best compression/quality ratio
+- **Bit Depth**: 16-bit - Standard for audio recording
+- **Channels**: Mono - Reduces file size 50%, sufficient for ambient audio
+- **Compression**: AAC-LC - Excellent quality with efficient compression
 
 **Storage Calculation Examples**:
 
-**Fixed Duration Mode**:
+**Fixed Duration Mode (Medium Quality - 32 kbps)**:
 - 1 minute segment: 32kbps × 60s = 240KB
 - 10 minutes retention: 10 × 240KB = 2.4MB
 - 1 hour retention: 60 × 240KB = 14.4MB
 - 24 hours retention: 1440 × 240KB = 345.6MB
 
-**Auto Music Mode**:
+**Auto Music Mode (Medium Quality - 32 kbps)**:
 - ~5 minute segment: 32kbps × 300s = 1.2MB
 - 30 minutes retention: ~6 × 1.2MB = 7.2MB
 - 1 hour retention: ~12 × 1.2MB = 14.4MB
 - 24 hours retention: ~288 × 1.2MB = 345.6MB
+
+**Quality Comparison (1 hour retention)**:
+- **Low Quality (16 kbps)**: 7.2MB - Best for battery life
+- **Medium Quality (32 kbps)**: 14.4MB - Balanced performance
+- **High Quality (128 kbps)**: 57.6MB - Best audio fidelity
 
 ### Quality vs. Storage Trade-offs
 - **16kHz vs 44.1kHz**: 73% storage reduction, minimal quality loss for speech

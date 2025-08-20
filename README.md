@@ -83,7 +83,10 @@ Listen is a background-listening app that captures ambient audio from your surro
 - Segment duration (15 seconds to 30 minutes)
 - Auto music mode (adaptive ~5-minute segments with silence detection)
 - Retention period (1 minute to 24 hours)
-- Audio quality (bitrate, sample rate)
+- Audio quality presets:
+  - **Low Quality**: 16 kbps, 8 kHz (telephone quality) - Best for battery life and storage
+  - **Medium Quality**: 32 kbps, 16 kHz (standard quality) - Good balance of quality and efficiency
+  - **High Quality**: 128 kbps, 44.1 kHz (CD quality) - Best audio fidelity, uses more storage
 - Microphone sensitivity
 
 ### Storage Settings
