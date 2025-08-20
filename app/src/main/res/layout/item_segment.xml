@@ -39,4 +39,33 @@
         app:layout_constraintTop_toBottomOf="@id/tv_time"
         app:layout_constraintStart_toStartOf="@id/tv_time"/>
 
+    <Button
+        android:id="@+id/btn_save_segment"
+        android:layout_width="wrap_content"
+        android:layout_height="32dp"
+        android:text="@string/btn_save"
+        android:textSize="12sp"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:padding="8dp"
+        android:layout_marginStart="8dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btn_delete_segment"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+
+    <Button
+        android:id="@+id/btn_delete_segment"
+        android:layout_width="wrap_content"
+        android:layout_height="32dp"
+        android:text="@string/btn_delete"
+        android:textSize="12sp"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:padding="8dp"
+        android:layout_marginStart="4dp"
+        android:backgroundTint="@android:color/holo_red_light"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

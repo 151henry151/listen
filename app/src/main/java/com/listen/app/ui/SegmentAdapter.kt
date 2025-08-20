@@ -10,13 +10,17 @@ import com.listen.app.data.Segment
 
 class SegmentAdapter(
 	private var items: List<Segment>,
-	private val onClick: (Segment) -> Unit
+	private val onClick: (Segment) -> Unit,
+	private val onSaveClick: (Segment) -> Unit,
+	private val onDeleteClick: (Segment) -> Unit
 ) : RecyclerView.Adapter<SegmentAdapter.SegmentViewHolder>() {
 
 	class SegmentViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 		val tvTime: TextView = itemView.findViewById(R.id.tv_time)
 		val tvDuration: TextView = itemView.findViewById(R.id.tv_duration)
 		val tvCallBadge: TextView? = itemView.findViewById(R.id.tv_call_badge)
+		val btnSave: android.widget.Button = itemView.findViewById(R.id.btn_save_segment)
+		val btnDelete: android.widget.Button = itemView.findViewById(R.id.btn_delete_segment)
 	}
 
 	override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SegmentViewHolder {
@@ -37,6 +41,8 @@ class SegmentAdapter(
 			holder.tvCallBadge?.visibility = View.GONE
 		}
 		holder.itemView.setOnClickListener { onClick(segment) }
+		holder.btnSave.setOnClickListener { onSaveClick(segment) }
+		holder.btnDelete.setOnClickListener { onDeleteClick(segment) }
 	}
 
 	override fun getItemCount(): Int = items.size

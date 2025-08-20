@@ -43,6 +43,9 @@
     <string name="btn_play">Play</string>
     <string name="btn_pause">Pause</string>
     <string name="btn_stop">Stop</string>
+    <string name="btn_previous">Previous</string>
+    <string name="btn_next">Next</string>
+    <string name="btn_save">Save</string>
     
     <!-- Settings -->
     <string name="title_settings">Settings</string>
@@ -94,4 +97,28 @@
     <string name="msg_microphone_unavailable">Microphone unavailable</string>
     <string name="msg_storage_directory_error">Storage directory error</string>
     <string name="msg_insufficient_storage_recording">Insufficient storage for recording</string>
+    
+    <!-- Save Dialog -->
+    <string name="dialog_save_title">Save Audio Segment</string>
+    <string name="dialog_save_message">Enter a filename for the audio segment:</string>
+    <string name="dialog_save_hint">Filename (without extension)</string>
+    <string name="dialog_save_positive">Save</string>
+    <string name="dialog_save_negative">Cancel</string>
+    <string name="msg_save_success">Audio segment saved successfully</string>
+    <string name="msg_save_error">Error saving audio segment</string>
+    <string name="msg_save_no_permission">Storage permission required to save files</string>
+    <string name="msg_save_invalid_filename">Please enter a valid filename</string>
+    
+    <!-- Delete Dialog -->
+    <string name="dialog_delete_segment_title">Delete Recording</string>
+    <string name="dialog_delete_segment_message">Are you sure you want to delete this recording? This action cannot be undone.</string>
+    <string name="dialog_delete_all_title">Clear All Recordings</string>
+    <string name="dialog_delete_all_message">Are you sure you want to delete all recordings? This action cannot be undone.</string>
+    <string name="btn_delete">Delete</string>
+    <string name="btn_delete_all">Clear All</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="msg_delete_success">Recording deleted successfully</string>
+    <string name="msg_delete_all_success">All recordings cleared successfully</string>
+    <string name="msg_delete_error">Error deleting recording</string>
+    <string name="msg_delete_all_error">Error clearing recordings</string>
 </resources> 

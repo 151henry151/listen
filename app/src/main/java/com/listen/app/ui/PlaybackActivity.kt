@@ -26,6 +26,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import com.listen.app.util.AppLog
+import com.listen.app.util.FileUtils
+import com.listen.app.util.SegmentManager
+import android.app.AlertDialog
+import android.widget.EditText
+import android.widget.Toast
 
 /**
  * Activity for playing back recorded audio segments
@@ -46,7 +51,13 @@ class PlaybackActivity : AppCompatActivity() {
     private lateinit var tvTotalTime: TextView
     private lateinit var btnPlayPause: Button
     private lateinit var btnStop: Button
+    private lateinit var btnPrevious: Button
+    private lateinit var btnNext: Button
+    private lateinit var btnSave: Button
+    private lateinit var btnClearAll: Button
     private lateinit var adapter: SegmentAdapter
+    private var segments: List<Segment> = emptyList()
+    private var currentSegmentIndex: Int = -1
     
     private var progressJob: Job? = null
     
@@ -81,27 +92,58 @@ class PlaybackActivity : AppCompatActivity() {
         tvTotalTime = findViewById(R.id.tv_total_time)
         btnPlayPause = findViewById(R.id.btn_play_pause)
         btnStop = findViewById(R.id.btn_stop)
+        btnPrevious = findViewById(R.id.btn_previous)
+        btnNext = findViewById(R.id.btn_next)
+        btnSave = findViewById(R.id.btn_save)
+        btnClearAll = findViewById(R.id.btn_clear_all)
         
-        adapter = SegmentAdapter(emptyList()) { segment ->
-            playSegment(segment)
-            tvCurrentSegment.text = File(segment.filePath).name
-        }
+        adapter = SegmentAdapter(
+            emptyList(),
+            onClick = { segment ->
+                playSegment(segment)
+                updateCurrentSegmentInfo(segment)
+            },
+            onSaveClick = { segment ->
+                showSaveDialog(segment)
+            },
+            onDeleteClick = { segment ->
+                showDeleteSegmentDialog(segment)
+            }
+        )
         rvSegments.layoutManager = LinearLayoutManager(this)
         rvSegments.adapter = adapter
         
         btnPlayPause.setOnClickListener {
             if (isPlaying()) {
                 pausePlayback()
-                btnPlayPause.text = getString(R.string.status_stopped)
+                updatePlayPauseButton()
             } else {
                 resumePlayback()
-                btnPlayPause.text = getString(R.string.status_recording)
+                updatePlayPauseButton()
             }
         }
         
         btnStop.setOnClickListener {
             stopPlayback()
-            btnPlayPause.text = getString(R.string.status_stopped)
+            updatePlayPauseButton()
+        }
+        
+        btnPrevious.setOnClickListener {
+            playPreviousSegment()
+        }
+        
+        btnNext.setOnClickListener {
+            playNextSegment()
+        }
+        
+        btnSave.setOnClickListener {
+            currentSegment?.let { segment ->
+                showSaveDialog(segment)
+            }
+        }
+        
+        btnClearAll.setOnClickListener {
+            showDeleteAllDialog()
         }
         
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -116,6 +158,206 @@ class PlaybackActivity : AppCompatActivity() {
         })
         
         AppLog.d(TAG, "PlaybackActivity UI setup completed")
+    }
+    
+    /** Update the play/pause button text */
+    private fun updatePlayPauseButton() {
+        btnPlayPause.text = if (isPlaying()) {
+            getString(R.string.btn_pause)
+        } else {
+            getString(R.string.btn_play)
+        }
+    }
+    
+    /** Update current segment information display */
+    private fun updateCurrentSegmentInfo(segment: Segment) {
+        tvCurrentSegment.text = File(segment.filePath).name
+        currentSegmentIndex = segments.indexOf(segment)
+        updateNavigationButtons()
+    }
+    
+    /** Update navigation buttons state */
+    private fun updateNavigationButtons() {
+        btnPrevious.isEnabled = currentSegmentIndex > 0
+        btnNext.isEnabled = currentSegmentIndex < segments.size - 1
+        btnSave.isEnabled = currentSegment != null
+    }
+    
+    /** Play the previous segment */
+    private fun playPreviousSegment() {
+        if (currentSegmentIndex > 0) {
+            val previousSegment = segments[currentSegmentIndex - 1]
+            playSegment(previousSegment)
+            updateCurrentSegmentInfo(previousSegment)
+        }
+    }
+    
+    /** Play the next segment */
+    private fun playNextSegment() {
+        if (currentSegmentIndex < segments.size - 1) {
+            val nextSegment = segments[currentSegmentIndex + 1]
+            playSegment(nextSegment)
+            updateCurrentSegmentInfo(nextSegment)
+        }
+    }
+    
+    /** Show save dialog for a segment */
+    private fun showSaveDialog(segment: Segment) {
+        val defaultFilename = FileUtils.generateDefaultFilename(segment)
+        
+        val editText = EditText(this).apply {
+            setText(defaultFilename)
+            selectAll()
+        }
+        
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_save_title))
+            .setMessage(getString(R.string.dialog_save_message))
+            .setView(editText)
+            .setPositiveButton(getString(R.string.dialog_save_positive)) { _, _ ->
+                val filename = editText.text.toString().trim()
+                if (FileUtils.isValidFilename(filename)) {
+                    saveSegment(segment, filename)
+                } else {
+                    Toast.makeText(this, getString(R.string.msg_save_invalid_filename), Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton(getString(R.string.dialog_save_negative), null)
+            .show()
+    }
+    
+    /** Save a segment to Downloads */
+    private fun saveSegment(segment: Segment, filename: String) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val savedFile = FileUtils.saveSegmentToDownloads(this@PlaybackActivity, segment, filename)
+                
+                withContext(Dispatchers.Main) {
+                    if (savedFile != null) {
+                        Toast.makeText(
+                            this@PlaybackActivity,
+                            getString(R.string.msg_save_success),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        Toast.makeText(
+                            this@PlaybackActivity,
+                            getString(R.string.msg_save_error),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                AppLog.e(TAG, "Error saving segment", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@PlaybackActivity,
+                        getString(R.string.msg_save_error),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+    
+    /** Show delete segment confirmation dialog */
+    private fun showDeleteSegmentDialog(segment: Segment) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_delete_segment_title))
+            .setMessage(getString(R.string.dialog_delete_segment_message))
+            .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
+                deleteSegment(segment)
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+    
+    /** Show delete all segments confirmation dialog */
+    private fun showDeleteAllDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_delete_all_title))
+            .setMessage(getString(R.string.dialog_delete_all_message))
+            .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
+                deleteAllSegments()
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+    
+    /** Delete a single segment */
+    private fun deleteSegment(segment: Segment) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val success = SegmentManager.deleteSegment(this@PlaybackActivity, segment)
+                
+                withContext(Dispatchers.Main) {
+                    if (success) {
+                        Toast.makeText(
+                            this@PlaybackActivity,
+                            getString(R.string.msg_delete_success),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        
+                        // If we deleted the currently playing segment, stop playback
+                        if (currentSegment?.id == segment.id) {
+                            stopPlayback()
+                        }
+                    } else {
+                        Toast.makeText(
+                            this@PlaybackActivity,
+                            getString(R.string.msg_delete_error),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                AppLog.e(TAG, "Error deleting segment", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@PlaybackActivity,
+                        getString(R.string.msg_delete_error),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+    
+    /** Delete all segments */
+    private fun deleteAllSegments() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val success = SegmentManager.deleteAllSegments(this@PlaybackActivity)
+                
+                withContext(Dispatchers.Main) {
+                    if (success) {
+                        Toast.makeText(
+                            this@PlaybackActivity,
+                            getString(R.string.msg_delete_all_success),
+                            Toast.LENGTH_LONG
+                        ).show()
+                        
+                        // Stop playback since all segments are gone
+                        stopPlayback()
+                    } else {
+                        Toast.makeText(
+                            this@PlaybackActivity,
+                            getString(R.string.msg_delete_all_error),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                AppLog.e(TAG, "Error deleting all segments", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@PlaybackActivity,
+                        getString(R.string.msg_delete_all_error),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
     }
     
     /** Load segments from database */
@@ -134,7 +376,9 @@ class PlaybackActivity : AppCompatActivity() {
     
     /** Update the segments list in the UI */
     private fun updateSegmentsList(segments: List<Segment>) {
+        this.segments = segments
         adapter.submitList(segments)
+        updateNavigationButtons()
     }
     
     /** Play a specific segment */
@@ -167,11 +411,13 @@ class PlaybackActivity : AppCompatActivity() {
             currentSegment = segment
             btnPlayPause.isEnabled = true
             btnStop.isEnabled = true
+            btnSave.isEnabled = true
             seekBar.isEnabled = true
             seekBar.max = getDuration()
             tvTotalTime.text = formatMs(getDuration().toLong())
             tvCurrentTime.text = formatMs(0)
             startProgressUpdater()
+            updatePlayPauseButton()
             
             AppLog.d(TAG, "Started playing segment: ${segment.filePath}")
             
@@ -216,7 +462,9 @@ class PlaybackActivity : AppCompatActivity() {
         abandonAudioFocus()
         btnPlayPause.isEnabled = false
         btnStop.isEnabled = false
+        btnSave.isEnabled = false
         seekBar.isEnabled = false
+        updatePlayPauseButton()
         AppLog.d(TAG, "Playback stopped")
     }
     

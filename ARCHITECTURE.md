@@ -98,6 +98,12 @@ class ListenForegroundService : Service() {
 - **Format**: AAC (Advanced Audio Coding) - best compression/quality ratio
 - **Sample Rate**: 16kHz - sufficient for speech, reduces file size by 50%
 - **Bit Depth**: 16-bit - standard for speech recording
+
+**Auto Music Mode Features**:
+- **Silence Detection**: Monitors audio levels to detect natural breaks in content
+- **Adaptive Segmentation**: Targets ~5-minute segments with intelligent splitting at silence points
+- **Content-Aware**: Optimized for podcasts, meetings, music sessions, and long-form content
+- **Fallback Protection**: Ensures segments don't exceed maximum duration limits
 - **Channels**: Mono - reduces file size by 50%, sufficient for ambient audio
 - **Bitrate**: 32kbps - excellent speech quality, minimal storage
 
@@ -228,7 +234,42 @@ class StorageManager {
         }
     }
 }
+
+### 5. Auto Music Mode (Intelligent Segmentation)
+**Purpose**: Provides content-aware audio segmentation for optimal playback experience
+
+**Key Features**:
+- **Silence Detection**: Real-time audio level monitoring to identify natural content breaks
+- **Adaptive Timing**: Targets ~5-minute segments while respecting content boundaries
+- **Smart Heuristics**: Uses multiple factors to determine optimal split points
+
+**Implementation Strategy**:
+```kotlin
+class AutoMusicModeManager {
+    private const val TARGET_SEGMENT_SECONDS = 300L // 5 minutes
+    private const val SILENCE_THRESHOLD_MS = 1200L // 1.2 seconds
+    private const val MAX_EXTRA_WAIT_MS = 180_000L // 3 minutes after target
+    
+    fun shouldSplitSegment(currentDuration: Long, audioLevel: Int): Boolean {
+        val isNearTarget = currentDuration >= TARGET_SEGMENT_SECONDS * 1000
+        val isSilent = audioLevel < SILENCE_THRESHOLD
+        val hasExceededMax = currentDuration >= (TARGET_SEGMENT_SECONDS + 180) * 1000
+        
+        return (isNearTarget && isSilent) || hasExceededMax
+    }
+    
+    fun monitorAudioLevels() {
+        // Continuous monitoring of audio levels
+        // Triggers segment rotation when conditions are met
+    }
+}
 ```
+
+**Benefits**:
+- **Better Content Organization**: Segments align with natural content boundaries
+- **Improved Playback Experience**: Users can easily navigate to specific content sections
+- **Optimized for Long-Form Content**: Perfect for podcasts, meetings, and music sessions
+- **Fallback Protection**: Ensures segments don't grow indefinitely
 
 ## 🔄 Service Persistence Strategy
 
@@ -313,11 +354,19 @@ class ListenForegroundService : Service() {
 | Channels | Mono | Reduces file size 50%, sufficient for ambient audio |
 | Bitrate | 32kbps | Excellent speech quality, minimal storage |
 
-**Storage Calculation Example**:
+**Storage Calculation Examples**:
+
+**Fixed Duration Mode**:
 - 1 minute segment: 32kbps × 60s = 240KB
 - 10 minutes retention: 10 × 240KB = 2.4MB
 - 1 hour retention: 60 × 240KB = 14.4MB
 - 24 hours retention: 1440 × 240KB = 345.6MB
+
+**Auto Music Mode**:
+- ~5 minute segment: 32kbps × 300s = 1.2MB
+- 30 minutes retention: ~6 × 1.2MB = 7.2MB
+- 1 hour retention: ~12 × 1.2MB = 14.4MB
+- 24 hours retention: ~288 × 1.2MB = 345.6MB
 
 ### Quality vs. Storage Trade-offs
 - **16kHz vs 44.1kHz**: 73% storage reduction, minimal quality loss for speech
@@ -401,7 +450,7 @@ class StorageHealthMonitor {
 - **Search/Filter**: Find specific time periods
 
 ### 3. Settings Panel
-- **Recording Settings**: Segment length, retention period
+- **Recording Settings**: Segment length, auto music mode, retention period
 - **Audio Quality**: Bitrate, sample rate options
 - **Storage Settings**: Max storage, cleanup policies
 - **Battery Settings**: Optimization preferences

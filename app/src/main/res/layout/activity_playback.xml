@@ -9,7 +9,7 @@
 
     <TextView
         android:id="@+id/tv_title"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="@string/title_playback"
         android:textSize="24sp"
@@ -17,6 +17,16 @@
         android:textColor="@color/text_primary"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btn_clear_all" />
+
+    <Button
+        android:id="@+id/btn_clear_all"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/btn_delete_all"
+        android:textSize="14sp"
+        android:backgroundTint="@android:color/holo_red_light"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
     <androidx.recyclerview.widget.RecyclerView
@@ -90,18 +100,53 @@
             android:gravity="center">
 
             <Button
-                android:id="@+id/btn_play_pause"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/btn_play"
+                android:id="@+id/btn_previous"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="@string/btn_previous"
+                android:textSize="12sp"
                 android:enabled="false" />
+
+            <Button
+                android:id="@+id/btn_play_pause"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:text="@string/btn_play"
+                android:textSize="16sp"
+                android:enabled="false" />
+
+            <Button
+                android:id="@+id/btn_next"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="@string/btn_next"
+                android:textSize="12sp"
+                android:enabled="false" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal"
+            android:gravity="center">
 
             <Button
                 android:id="@+id/btn_stop"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
                 android:text="@string/btn_stop"
+                android:enabled="false" />
+
+            <Button
+                android:id="@+id/btn_save"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/btn_save"
                 android:enabled="false" />
 
         </LinearLayout>

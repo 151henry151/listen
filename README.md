@@ -10,6 +10,7 @@ Listen is a background-listening app that captures ambient audio from your surro
 
 - **Continuous Background Recording**: Runs silently in the background, capturing audio 24/7
 - **Configurable Segment Length**: Adjustable recording segment duration (e.g., 1 minute, 30 seconds, 5 minutes)
+- **Auto Music Mode**: Intelligent segment splitting that detects natural silence breaks and targets ~5-minute segments for optimal content organization
 - **Customizable Retention Period**: Set how long to keep audio history (e.g., 10 minutes, 1 hour, 24 hours)
 - **Rotating Buffer System**: Automatically manages storage by deleting old segments and adding new ones
 - **Instant Playback**: Access any moment from your audio history with just a few taps
@@ -23,10 +24,17 @@ Listen is a background-listening app that captures ambient audio from your surro
 3. **Rotating Buffer**: When the retention period is reached, the oldest segment is automatically deleted and replaced with the newest recording
 4. **Always Available**: At any moment, you have access to the complete audio history within your retention window
 
-### Example Configuration
+### Example Configurations
+
+**Fixed Duration Mode**:
 - **Segment Length**: 1 minute
 - **Retention Period**: 10 minutes
 - **Result**: Always have the last 10 minutes of audio available, divided into 10 one-minute segments
+
+**Auto Music Mode**:
+- **Target Duration**: ~5 minutes (adaptive)
+- **Retention Period**: 30 minutes
+- **Result**: Audio automatically split at natural silence breaks, typically around 5 minutes, perfect for podcasts, meetings, and music sessions
 
 ## 🚀 Use Cases
 
@@ -34,6 +42,7 @@ Listen is a background-listening app that captures ambient audio from your surro
 - **Conversation Recall**: Review conversations that happened while you were distracted
 - **Sound Investigation**: Identify what caused a noise you heard earlier
 - **Learning Aid**: Review lectures or presentations you attended
+- **Podcast/Content Review**: Perfect for reviewing long-form content with auto music mode
 - **Security Monitoring**: Keep an audio log of your surroundings
 - **Memory Assistance**: Help with recall of recent events or conversations
 
@@ -72,6 +81,7 @@ Listen is a background-listening app that captures ambient audio from your surro
 
 ### Recording Settings
 - Segment duration (15 seconds to 30 minutes)
+- Auto music mode (adaptive ~5-minute segments with silence detection)
 - Retention period (1 minute to 24 hours)
 - Audio quality (bitrate, sample rate)
 - Microphone sensitivity

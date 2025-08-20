@@ -144,6 +144,6 @@ class SettingsManager(context: Context) {
         const val DEFAULT_AUDIO_BITRATE = 32 // 32 kbps
         const val DEFAULT_AUDIO_SAMPLE_RATE = 16000 // 16 kHz
         const val DEFAULT_MAX_STORAGE = 100 // 100 MB
-        const val AUTO_MUSIC_TARGET_SECONDS = 120 // ~2 minutes
+        const val AUTO_MUSIC_TARGET_SECONDS = 300 // ~5 minutes
     }
 } 
