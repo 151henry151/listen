@@ -56,6 +56,14 @@
     <string name="setting_auto_start">Auto-start on Boot</string>
     <string name="setting_show_notification">Show Notification</string>
     
+    <!-- Audio Quality Presets -->
+    <string name="audio_quality_low">Low Quality</string>
+    <string name="audio_quality_low_description">Telephone quality - Best for battery life and storage</string>
+    <string name="audio_quality_medium">Medium Quality</string>
+    <string name="audio_quality_medium_description">Standard quality - Good balance of quality and efficiency</string>
+    <string name="audio_quality_high">High Quality</string>
+    <string name="audio_quality_high_description">CD quality - Best audio fidelity, uses more storage</string>
+    
     <!-- Messages -->
     <string name="msg_service_started">Recording service started</string>
     <string name="msg_service_stopped">Recording service stopped</string>

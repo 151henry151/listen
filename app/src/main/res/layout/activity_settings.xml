@@ -59,23 +59,63 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Audio Bitrate (kbps)" />
-        <EditText
-            android:id="@+id/et_bitrate_kbps"
+            android:text="@string/setting_audio_quality" />
+        
+        <RadioGroup
+            android:id="@+id/rg_audio_quality"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="number" />
+            android:layout_marginTop="8dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="Sample Rate (Hz)" />
-        <EditText
-            android:id="@+id/et_sample_rate"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="number" />
+            <RadioButton
+                android:id="@+id/rb_quality_low"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/audio_quality_low"
+                android:padding="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/audio_quality_low_description"
+                android:textSize="12sp"
+                android:textColor="@android:color/darker_gray"
+                android:layout_marginStart="32dp"
+                android:layout_marginBottom="8dp" />
+
+            <RadioButton
+                android:id="@+id/rb_quality_medium"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/audio_quality_medium"
+                android:padding="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/audio_quality_medium_description"
+                android:textSize="12sp"
+                android:textColor="@android:color/darker_gray"
+                android:layout_marginStart="32dp"
+                android:layout_marginBottom="8dp" />
+
+            <RadioButton
+                android:id="@+id/rb_quality_high"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/audio_quality_high"
+                android:padding="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/audio_quality_high_description"
+                android:textSize="12sp"
+                android:textColor="@android:color/darker_gray"
+                android:layout_marginStart="32dp"
+                android:layout_marginBottom="8dp" />
+
+        </RadioGroup>
 
         <TextView
             android:layout_width="wrap_content"

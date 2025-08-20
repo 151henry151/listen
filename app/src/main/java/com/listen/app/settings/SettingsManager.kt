@@ -33,15 +33,21 @@ class SettingsManager(context: Context) {
         get() = prefs.getInt(KEY_RETENTION_PERIOD, DEFAULT_RETENTION_PERIOD)
         set(value) = prefs.edit { putInt(KEY_RETENTION_PERIOD, value) }
     
-    /** Audio bitrate in kbps */
-    var audioBitrate: Int
-        get() = prefs.getInt(KEY_AUDIO_BITRATE, DEFAULT_AUDIO_BITRATE)
-        set(value) = prefs.edit { putInt(KEY_AUDIO_BITRATE, value) }
+    /** Audio quality preset */
+    var audioQualityPreset: AudioQualityPreset
+        get() {
+            val presetOrdinal = prefs.getInt(KEY_AUDIO_QUALITY_PRESET, AudioQualityPreset.MEDIUM.ordinal)
+            return AudioQualityPreset.values()[presetOrdinal]
+        }
+        set(value) = prefs.edit { putInt(KEY_AUDIO_QUALITY_PRESET, value.ordinal) }
     
-    /** Audio sample rate in Hz */
-    var audioSampleRate: Int
-        get() = prefs.getInt(KEY_AUDIO_SAMPLE_RATE, DEFAULT_AUDIO_SAMPLE_RATE)
-        set(value) = prefs.edit { putInt(KEY_AUDIO_SAMPLE_RATE, value) }
+    /** Audio bitrate in kbps (computed from quality preset) */
+    val audioBitrate: Int
+        get() = audioQualityPreset.bitrate
+    
+    /** Audio sample rate in Hz (computed from quality preset) */
+    val audioSampleRate: Int
+        get() = audioQualityPreset.sampleRate
     
     /** Maximum storage usage in MB */
     var maxStorageMB: Int
@@ -128,8 +134,7 @@ class SettingsManager(context: Context) {
         private const val KEY_SEGMENT_DURATION = "segment_duration"
         private const val KEY_AUTO_MUSIC_MODE = "auto_music_mode"
         private const val KEY_RETENTION_PERIOD = "retention_period"
-        private const val KEY_AUDIO_BITRATE = "audio_bitrate"
-        private const val KEY_AUDIO_SAMPLE_RATE = "audio_sample_rate"
+        private const val KEY_AUDIO_QUALITY_PRESET = "audio_quality_preset"
         private const val KEY_MAX_STORAGE = "max_storage"
         private const val KEY_AUTO_START_BOOT = "auto_start_boot"
         private const val KEY_WAS_RECORDING_ON_SHUTDOWN = "was_recording_on_shutdown"
@@ -141,9 +146,42 @@ class SettingsManager(context: Context) {
         // Default values
         const val DEFAULT_SEGMENT_DURATION = 60 // 1 minute
         const val DEFAULT_RETENTION_PERIOD = 10 // 10 minutes
-        const val DEFAULT_AUDIO_BITRATE = 32 // 32 kbps
-        const val DEFAULT_AUDIO_SAMPLE_RATE = 16000 // 16 kHz
         const val DEFAULT_MAX_STORAGE = 100 // 100 MB
         const val AUTO_MUSIC_TARGET_SECONDS = 300 // ~5 minutes
     }
+}
+
+/**
+ * Audio quality presets for user-friendly selection
+ */
+enum class AudioQualityPreset(
+    val displayName: String,
+    val description: String,
+    val bitrate: Int,
+    val sampleRate: Int
+) {
+    LOW(
+        displayName = "Low Quality",
+        description = "Telephone quality - Best for battery life and storage",
+        bitrate = 16, // 16 kbps
+        sampleRate = 8000 // 8 kHz
+    ),
+    MEDIUM(
+        displayName = "Medium Quality", 
+        description = "Standard quality - Good balance of quality and efficiency",
+        bitrate = 32, // 32 kbps
+        sampleRate = 16000 // 16 kHz
+    ),
+    HIGH(
+        displayName = "High Quality",
+        description = "CD quality - Best audio fidelity, uses more storage",
+        bitrate = 128, // 128 kbps
+        sampleRate = 44100 // 44.1 kHz
+    );
+    
+    /** Get formatted bitrate string */
+    fun getBitrateString(): String = "${bitrate} kbps"
+    
+    /** Get formatted sample rate string */
+    fun getSampleRateString(): String = "${sampleRate / 1000} kHz"
 } 
