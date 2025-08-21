@@ -1,0 +1,9 @@
+{
+  "active": true,
+  "events": ["push"],
+  "config": {
+    "url": "http://192.64.87.248:8081/",
+    "content_type": "json",
+    "secret": "listen-app-secret-key-2024"
+  }
+}
