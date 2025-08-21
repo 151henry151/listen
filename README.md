@@ -16,6 +16,11 @@ Listen is a background-listening app that captures ambient audio from your surro
 - **Instant Playback**: Access any moment from your audio history with just a few taps
 - **Privacy-First Design**: All recordings stored locally on device, no cloud uploads
 - **Battery Optimized**: Efficient background processing with minimal battery impact
+- **Audio Quality Presets**: Choose from Low (16 kbps), Medium (32 kbps), or High (128 kbps) quality settings
+- **Automatic Build & Deployment**: Automated CI/CD pipeline that builds and deploys APK on every commit
+- **Export Functionality**: Export audio segments in various formats
+- **WorkManager Integration**: Optimized segment rotation with WorkManager scheduling
+- **Enhanced Error Handling**: Comprehensive error handling and user feedback systems
 
 ## 🔧 How It Works
 
@@ -49,25 +54,33 @@ Listen is a background-listening app that captures ambient audio from your surro
 ## 🛠️ Technical Architecture
 
 ### Core Components
-- **AudioRecorderService**: Background service for continuous audio capture
-- **AudioSegmentManager**: Handles segment creation, rotation, and deletion
+- **ListenForegroundService**: Main background service for continuous audio capture and orchestration
+- **AudioRecorderService**: Handles audio recording with MediaRecorder
+- **SegmentManagerService**: Manages segment creation, rotation, and deletion
 - **StorageManager**: Manages local file storage and cleanup
-- **PlaybackManager**: Handles audio playback and navigation
-- **SettingsManager**: User preferences and configuration
+- **SettingsManager**: User preferences and configuration management
+- **ListenDatabase**: Room database for segment metadata storage
+- **ServiceHealthMonitor**: Monitors service health and handles restarts
+- **ServiceStateManager**: Manages service state transitions
 
 ### Audio Processing
-- **Format**: High-quality audio recording with configurable bitrate
+- **Format**: High-quality audio recording with configurable bitrate (16-128 kbps)
 - **Compression**: Efficient storage with minimal quality loss
 - **Segmentation**: Precise time-based audio splitting
 - **Metadata**: Timestamp and duration tracking for each segment
 
+### Quality Presets
+- **Low Quality**: 16 kbps, 8 kHz (telephone quality) - Best for battery life and storage
+- **Medium Quality**: 32 kbps, 16 kHz (standard quality) - Good balance of quality and efficiency  
+- **High Quality**: 128 kbps, 44.1 kHz (CD quality) - Best audio fidelity, uses more storage
+
 ## 📱 User Interface
 
-- **Main Dashboard**: Overview of current recording status and available segments
-- **Timeline View**: Visual representation of audio history with time markers
-- **Playback Controls**: Intuitive audio player with segment navigation
-- **Settings Panel**: Easy configuration of recording parameters
-- **Quick Access**: Widget support for instant audio review
+- **Main Dashboard**: Overview of current recording status, storage usage, and service controls
+- **Playback Activity**: Audio player with segment navigation and timeline view
+- **Settings Panel**: Easy configuration of recording parameters and audio quality
+- **Real-time Status**: Live updates of recording status and elapsed time
+- **Audio Visualizer**: Visual representation of audio levels during recording
 
 ## 🔒 Privacy & Security
 
@@ -83,10 +96,7 @@ Listen is a background-listening app that captures ambient audio from your surro
 - Segment duration (15 seconds to 30 minutes)
 - Auto music mode (adaptive ~5-minute segments with silence detection)
 - Retention period (1 minute to 24 hours)
-- Audio quality presets:
-  - **Low Quality**: 16 kbps, 8 kHz (telephone quality) - Best for battery life and storage
-  - **Medium Quality**: 32 kbps, 16 kHz (standard quality) - Good balance of quality and efficiency
-  - **High Quality**: 128 kbps, 44.1 kHz (CD quality) - Best audio fidelity, uses more storage
+- Audio quality presets (Low, Medium, High)
 - Microphone sensitivity
 
 ### Storage Settings
@@ -102,22 +112,36 @@ Listen is a background-listening app that captures ambient audio from your surro
 ## 📋 Requirements
 
 - **Android Version**: Android 8.0 (API 26) or higher
-- **Permissions**: Microphone access, background processing
+- **Permissions**: Microphone access, background processing, notification access
 - **Storage**: Minimum 100MB free space (varies by retention settings)
 - **Hardware**: Microphone support
 
 ## 🧑‍💻 Development
 
+### Build Environment
+- **Android Studio**: Giraffe or newer
+- **SDK**: API 26-34
+- **Java**: JDK 17
+- **Kotlin**: Latest stable version
+
 ### Build locally
-- Install Android Studio (Giraffe or newer) with SDK 26–34
+- Install Android Studio with SDK 26–34
 - Set `sdk.dir` in `local.properties`
 - Build and run:
   - From IDE: Run the `app` configuration
   - CLI: `./gradlew assembleDebug`
 
+### Automated Build & Deployment
+The project includes a complete CI/CD pipeline:
+- **Webhook Server**: Automatically triggers builds on GitHub commits
+- **Build Script**: `./auto-build-deploy.sh` - Automated APK building and deployment
+- **Deployment**: APK automatically deployed to web server on every commit
+- **Status Monitoring**: `./status.sh` - System status and health checks
+
 ### Logging
 - Debug builds use Timber; logs routed via `AppLog` wrapper
 - Release builds silence logs through `AppLog` no-op behavior
+- Debug logs written to `debug_log.txt` for troubleshooting
 
 ### StrictMode (debug)
 - StrictMode is enabled in debug builds via `ListenApplication` to catch disk/network on main thread and leaks early
@@ -128,23 +152,42 @@ Listen is a background-listening app that captures ambient audio from your surro
 - Ktlint: `./gradlew ktlintCheck`
 
 ### CI
-- GitHub Actions builds on push/PR to `main`:
+- GitHub Actions builds on push/PR to `master`:
   - Assemble debug, run unit tests, Android Lint
   - Optionally runs Detekt and Ktlint if configured
 
 ## 🚧 Development Status
 
-This project is currently in the initial planning and development phase.
+This project is in active development with comprehensive functionality implemented and operational.
 
-### Planned Milestones
-- [ ] Project setup and basic architecture
-- [ ] Core audio recording service
-- [ ] Segment management system
-- [ ] Basic user interface
-- [ ] Playback functionality
-- [ ] Settings and configuration
-- [ ] Testing and optimization
-- [ ] Release preparation
+### ✅ Implemented Features
+- [x] Project setup and basic architecture
+- [x] Core audio recording service with background operation
+- [x] Segment management system with database storage
+- [x] Main user interface with dashboard and controls
+- [x] Playback functionality with segment navigation
+- [x] Settings and configuration management
+- [x] Audio quality presets (Low, Medium, High)
+- [x] Storage management and cleanup
+- [x] Permission handling for Android 8.0+
+- [x] Automated build and deployment system
+- [x] Service health monitoring and restart capabilities
+- [x] WorkManager-based segment rotation optimization
+- [x] Enhanced error handling and user feedback systems
+- [x] Export functionality for audio segments
+- [x] Performance optimization and battery efficiency improvements
+- [x] Audio visualizer for recording feedback
+- [x] Comprehensive logging and debugging capabilities
+- [x] Boot receiver for auto-start functionality
+- [x] Battery optimization handling
+
+## 📚 Documentation
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Technical architecture and design details
+- [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) - Detailed build and deployment instructions
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Production deployment guidelines
+- [PRODUCTION_ISSUES.md](PRODUCTION_ISSUES.md) - Known issues and production readiness tasks
+- [AUTOMATION.md](AUTOMATION.md) - Automated build and deployment system documentation
 
 ## 🤝 Contributing
 
@@ -166,4 +209,4 @@ For questions, suggestions, or issues, please open an issue in this repository.
 
 ---
 
-**Note**: This app is designed for personal use and legitimate recording purposes. Users are responsible for complying with local laws regarding audio recording and privacy. Always respect others' privacy and obtain consent when recording in shared spaces. 
+**Note**: This app is designed for personal use and legitimate recording purposes. Users are responsible for complying with local laws regarding audio recording and privacy. Always respect others' privacy and obtain consent when required.
