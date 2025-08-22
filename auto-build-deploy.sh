@@ -7,7 +7,7 @@ set -e  # Exit on any error
 
 # Configuration
 REPO_DIR="/home/henry/listen"
-DEPLOY_DIR="/home/henry/webserver/domains/com/hromp.com/public_html/downloads"
+DEPLOY_DIR="/home/henry/listen-apk-deploy"
 APK_NAME="listen.apk"
 LOG_FILE="/home/henry/listen/build.log"
 
@@ -44,7 +44,7 @@ check_for_new_commits() {
     
     # Get current and remote commit hashes
     LOCAL_COMMIT=$(git rev-parse HEAD)
-    REMOTE_COMMIT=$(git rev-parse origin/main)
+    REMOTE_COMMIT=$(git rev-parse origin/master)
     
     if [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then
         log "New commits detected! Local: ${LOCAL_COMMIT:0:8}, Remote: ${REMOTE_COMMIT:0:8}"
@@ -63,7 +63,7 @@ build_and_deploy() {
     
     # Pull latest changes
     log "Pulling latest changes..."
-    git pull origin main
+    git pull origin master
     
     # Set up environment
     export ANDROID_HOME=$HOME/android-sdk
