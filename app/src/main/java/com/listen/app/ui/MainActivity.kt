@@ -96,9 +96,8 @@ class MainActivity : AppCompatActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ListenForegroundService.ACTION_RECORDING_STATUS) {
                 lastStatusBroadcastTime = System.currentTimeMillis()
-                val isRecording = intent.getBooleanExtra(ListenForegroundService.EXTRA_IS_RECORDING, false)
-                val elapsed = intent.getLongExtra(ListenForegroundService.EXTRA_ELAPSED_MS, 0L)
-                updateRecordingStatus(isRecording, elapsed)
+                // For simplified status, we just update the UI to reflect the current state
+                updateUI()
             }
         }
     }
@@ -434,18 +433,18 @@ class MainActivity : AppCompatActivity() {
                 
                 writeDebugLog("Storage info retrieved: stats=$storageStats, available=$availableStorage, segments=$segmentCount")
                 
-                // Update UI elements based on actual service state
-                binding.tvServiceStatus.text = when {
-                    isServiceActuallyRunning -> getString(R.string.status_service_running)
-                    isServiceEnabled -> getString(R.string.status_service_starting)
-                    else -> getString(R.string.status_service_stopped)
+                // Simplified status display - just show Recording or Stopped
+                if (isServiceActuallyRunning) {
+                    binding.tvServiceStatus.text = getString(R.string.status_recording)
+                    binding.tvServiceStatus.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.status_running_green))
+                    // Hide the recording status text view since we're using service status for everything
+                    binding.tvRecordingStatus.visibility = android.view.View.GONE
+                } else {
+                    binding.tvServiceStatus.text = getString(R.string.status_stopped)
+                    binding.tvServiceStatus.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.recording_red))
+                    // Hide the recording status text view since we're using service status for everything
+                    binding.tvRecordingStatus.visibility = android.view.View.GONE
                 }
-                val serviceColorRes = when {
-                    isServiceActuallyRunning -> R.color.status_running_green
-                    isServiceEnabled -> R.color.status_starting_orange
-                    else -> R.color.stopped_gray
-                }
-                binding.tvServiceStatus.setTextColor(ContextCompat.getColor(this@MainActivity, serviceColorRes))
                 
                 // Update button text based on settings (what user wants)
                 binding.btnStartStop.text = if (isServiceEnabled) {
@@ -464,20 +463,6 @@ class MainActivity : AppCompatActivity() {
                 binding.tvAvailableStorage.text = "Available: $availableStorage"
                 binding.tvSegmentsCount.text = "Segments: $segmentCount"
                 
-                // Update recording status based on service state
-                if (isServiceActuallyRunning) {
-                    // If service is running, check if it's actively recording
-                    val isRecording = try {
-                        // Try to get recording status from service, fallback to false if not available
-                        false // This will be updated by broadcast receiver if service is broadcasting
-                    } catch (e: Exception) {
-                        false
-                    }
-                    updateRecordingStatus(isRecording, 0L)
-                } else {
-                    updateRecordingStatus(false, 0L)
-                }
-                
                 maybeWarnLowStorage()
                 
                 AppLog.d(TAG, "Service enabled: $isServiceEnabled, Actually running: $isServiceActuallyRunning")
@@ -492,36 +477,6 @@ class MainActivity : AppCompatActivity() {
                 writeDebugLog(errorMsg)
                 writeDebugLog(e.stackTraceToString())
             }
-        }
-    }
-    
-    private fun updateRecordingStatus(isRecording: Boolean, elapsedMs: Long) {
-        val minutes = elapsedMs / 60000
-        val seconds = (elapsedMs % 60000) / 1000
-        val isServiceActuallyRunning = isServiceActuallyRunning()
-        
-        // Show recording status based on actual recording state, not just service state
-        binding.tvRecordingStatus.text = if (isRecording) {
-            getString(R.string.label_recording) + ":  ${minutes}:${String.format("%02d", seconds)}"
-        } else {
-            getString(R.string.label_recording) + ": " + getString(R.string.status_stopped)
-        }
-        
-        val recordingColorRes = if (isRecording) R.color.recording_red else R.color.stopped_gray
-        binding.tvRecordingStatus.setTextColor(ContextCompat.getColor(this, recordingColorRes))
-        
-        // Update service status to show it's actually running
-        binding.tvServiceStatus.text = when {
-            isServiceActuallyRunning -> getString(R.string.status_service_running)
-            settings.isServiceEnabled -> getString(R.string.status_service_starting)
-            else -> getString(R.string.status_service_stopped)
-        }
-        
-        // Keep start/stop label in sync with serviceEnabled toggle
-        binding.btnStartStop.text = if (settings.isServiceEnabled) {
-            getString(R.string.btn_stop_recording)
-        } else {
-            getString(R.string.btn_start_recording)
         }
     }
     
