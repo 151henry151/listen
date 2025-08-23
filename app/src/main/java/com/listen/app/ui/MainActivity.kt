@@ -264,17 +264,8 @@ class MainActivity : AppCompatActivity() {
             ) == PackageManager.PERMISSION_GRANTED -> {
                 writeDebugLog("Microphone permission already granted")
                 AppLog.d(TAG, "Microphone permission already granted")
-                // Check foreground service permission for Android 14+
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    if (ContextCompat.checkSelfPermission(
-                            this,
-                            Manifest.permission.FOREGROUND_SERVICE_MICROPHONE
-                        ) != PackageManager.PERMISSION_GRANTED) {
-                        writeDebugLog("Requesting foreground service microphone permission")
-                        requestForegroundServicePermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE)
-                        return
-                    }
-                }
+                // Continue with full permission flow
+                requestForegroundServicePermission()
             }
             shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) -> {
                 writeDebugLog("Showing permission rationale")
@@ -468,6 +459,12 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     false // Service not running, definitely not recording
                 }
+                
+                // Debug logging for status determination
+                writeDebugLog("Status debug: isServiceEnabled=$isServiceEnabled, isServiceActuallyRunning=$isServiceActuallyRunning")
+                writeDebugLog("Status debug: lastStatusBroadcastTime=$lastStatusBroadcastTime, lastRecordingState=$lastRecordingState")
+                writeDebugLog("Status debug: hasRecentBroadcast=${lastStatusBroadcastTime > 0 && (System.currentTimeMillis() - lastStatusBroadcastTime) < 5000}")
+                writeDebugLog("Status debug: final isRecording=$isRecording")
                 
                 // Update status display
                 if (isRecording) {
