@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var storageManager: StorageManager
     
     private var lastStatusBroadcastTime: Long = 0
+    private var lastRecordingState: Boolean = false
     
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -96,6 +97,8 @@ class MainActivity : AppCompatActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ListenForegroundService.ACTION_RECORDING_STATUS) {
                 lastStatusBroadcastTime = System.currentTimeMillis()
+                // Extract the actual recording state from the broadcast
+                lastRecordingState = intent.getBooleanExtra(ListenForegroundService.EXTRA_IS_RECORDING, false)
                 // For simplified status, we just update the UI to reflect the current state
                 updateUI()
             }
@@ -434,7 +437,7 @@ class MainActivity : AppCompatActivity() {
                 writeDebugLog("Storage info retrieved: stats=$storageStats, available=$availableStorage, segments=$segmentCount")
                 
                 // Simplified status display - just show Recording or Stopped
-                if (isServiceActuallyRunning) {
+                if (lastRecordingState) {
                     binding.tvServiceStatus.text = getString(R.string.status_recording)
                     binding.tvServiceStatus.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.status_running_green))
                     // Hide the recording status text view since we're using service status for everything
@@ -466,6 +469,7 @@ class MainActivity : AppCompatActivity() {
                 maybeWarnLowStorage()
                 
                 AppLog.d(TAG, "Service enabled: $isServiceEnabled, Actually running: $isServiceActuallyRunning")
+                AppLog.d(TAG, "Recording state: $lastRecordingState")
                 AppLog.d(TAG, "Storage usage: $storageStats")
                 AppLog.d(TAG, "Available storage: $availableStorage")
                 
@@ -534,6 +538,7 @@ class MainActivity : AppCompatActivity() {
     fun stopService() {
         settings.isServiceEnabled = false
         lastStatusBroadcastTime = 0  // Reset broadcast tracking
+        lastRecordingState = false   // Reset recording state
         ListenForegroundService.stop(this)
         Toast.makeText(this, getString(R.string.msg_service_stopped), Toast.LENGTH_SHORT).show()
         updateUI()
@@ -554,11 +559,12 @@ class MainActivity : AppCompatActivity() {
                 it.service.className == ListenForegroundService::class.java.name 
             }
             
-            // Method 2: Check if we're receiving broadcasts (more reliable indicator)
-            // If we've received a broadcast in the last 3 seconds, service is likely running
+            // Method 2: Check if we're receiving broadcasts AND service is enabled
+            // Only consider broadcasts as valid if the service is supposed to be enabled
             val lastBroadcast = lastStatusBroadcastTime
             val isReceivingBroadcasts = lastBroadcast > 0 && 
-                (System.currentTimeMillis() - lastBroadcast) < 3000
+                (System.currentTimeMillis() - lastBroadcast) < 3000 &&
+                settings.isServiceEnabled
             
             // Return true if either method indicates the service is running
             isRunningViaActivityManager || isReceivingBroadcasts
