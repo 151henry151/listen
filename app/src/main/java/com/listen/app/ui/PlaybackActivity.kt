@@ -399,9 +399,8 @@ class PlaybackActivity : AppCompatActivity() {
                 
                 withContext(Dispatchers.Main) {
                     if (savedFile != null) {
-                        // Mark segment as saved in database
-                        val updatedSegment = segment.copy(isSavedToDownloads = true)
-                        database.segmentDao().updateSegment(updatedSegment)
+                        // Don't modify the original segment - keep it in rotating tab
+                        // The saved file is a copy that exists independently
                         
                         Toast.makeText(
                             this@PlaybackActivity,
@@ -409,10 +408,9 @@ class PlaybackActivity : AppCompatActivity() {
                             Toast.LENGTH_LONG
                         ).show()
                         
-                        // Refresh both segments lists with a small delay to ensure file system is updated
+                        // Refresh saved segments list with a small delay to ensure file system is updated
                         lifecycleScope.launch {
                             delay(500) // Small delay to ensure file system is updated
-                            loadSegments() // Refresh rotating segments list
                             loadSavedSegments() // Refresh saved segments list
                         }
                     } else {
@@ -503,7 +501,8 @@ class PlaybackActivity : AppCompatActivity() {
     private fun deleteAllSegments() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val success = SegmentManager.deleteRotatingSegments(this@PlaybackActivity)
+                // Delete all segments from database, but saved copies remain in saved directory
+                val success = SegmentManager.deleteAllSegments(this@PlaybackActivity)
                 
                 withContext(Dispatchers.Main) {
                     if (success) {
@@ -543,10 +542,10 @@ class PlaybackActivity : AppCompatActivity() {
     private fun loadSegments() {
         lifecycleScope.launch {
             try {
-                // Only load rotating segments (not saved ones)
-                val rotatingSegments = database.segmentDao().getRotatingSegments()
-                AppLog.d(TAG, "Loaded ${rotatingSegments.size} rotating segments")
-                updateSegmentsList(rotatingSegments)
+                database.segmentDao().getAllSegments().collect { segments ->
+                    AppLog.d(TAG, "Loaded ${segments.size} segments")
+                    updateSegmentsList(segments)
+                }
             } catch (e: Exception) {
                 AppLog.e(TAG, "Error loading segments", e)
             }
