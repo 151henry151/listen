@@ -45,9 +45,11 @@ class MainActivity : AppCompatActivity() {
     ) { isGranted ->
         if (isGranted) {
             AppLog.d(TAG, "Microphone permission granted")
+            writeDebugLog("Microphone permission granted")
             requestForegroundServicePermission()
         } else {
             AppLog.w(TAG, "Microphone permission denied")
+            writeDebugLog("Microphone permission denied")
             Toast.makeText(this, "Microphone permission required for recording", Toast.LENGTH_LONG).show()
         }
     }
@@ -57,9 +59,11 @@ class MainActivity : AppCompatActivity() {
     ) { isGranted ->
         if (isGranted) {
             AppLog.d(TAG, "Foreground service microphone permission granted")
+            writeDebugLog("Foreground service microphone permission granted")
             requestNotificationPermission()
         } else {
             AppLog.w(TAG, "Foreground service microphone permission denied")
+            writeDebugLog("Foreground service microphone permission denied")
             Toast.makeText(this, "Foreground service permission required for recording", Toast.LENGTH_LONG).show()
         }
     }
@@ -69,10 +73,14 @@ class MainActivity : AppCompatActivity() {
     ) { isGranted ->
         if (isGranted) {
             AppLog.d(TAG, "Notification permission granted")
+            writeDebugLog("Notification permission granted")
         } else {
             AppLog.w(TAG, "Notification permission denied")
+            writeDebugLog("Notification permission denied")
         }
         // Skip phone call permissions and go directly to battery optimization
+        AppLog.d(TAG, "Proceeding to battery optimization permission")
+        writeDebugLog("Proceeding to battery optimization permission")
         requestBatteryOptimizationPermission()
     }
 
@@ -242,6 +250,9 @@ class MainActivity : AppCompatActivity() {
     
     /** Check basic permissions only */
     private fun checkBasicPermissions() {
+        writeDebugLog("checkBasicPermissions called")
+        AppLog.d(TAG, "checkBasicPermissions called")
+        
         when {
             ContextCompat.checkSelfPermission(
                 this,
@@ -250,14 +261,17 @@ class MainActivity : AppCompatActivity() {
                 writeDebugLog("Microphone permission already granted")
                 AppLog.d(TAG, "Microphone permission already granted")
                 // Continue with full permission flow
+                writeDebugLog("Proceeding to requestForegroundServicePermission")
                 requestForegroundServicePermission()
             }
             shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) -> {
                 writeDebugLog("Showing permission rationale")
+                AppLog.d(TAG, "Showing permission rationale")
                 showPermissionRationale()
             }
             else -> {
                 writeDebugLog("Requesting microphone permission")
+                AppLog.d(TAG, "Requesting microphone permission")
                 requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
         }
@@ -332,28 +346,38 @@ class MainActivity : AppCompatActivity() {
     /** Request battery optimization permission */
     private fun requestBatteryOptimizationPermission() {
         AppLog.d(TAG, "requestBatteryOptimizationPermission called")
+        writeDebugLog("requestBatteryOptimizationPermission called")
         try {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
             val pkg = packageName
             AppLog.d(TAG, "Checking battery optimization for package: $pkg")
+            writeDebugLog("Checking battery optimization for package: $pkg")
             val ignoring = pm.isIgnoringBatteryOptimizations(pkg)
             AppLog.d(TAG, "Battery optimization ignoring: $ignoring")
+            writeDebugLog("Battery optimization ignoring: $ignoring")
             AppLog.d(TAG, "Android version: ${android.os.Build.VERSION.SDK_INT}, M: ${android.os.Build.VERSION_CODES.M}")
+            writeDebugLog("Android version: ${android.os.Build.VERSION.SDK_INT}, M: ${android.os.Build.VERSION_CODES.M}")
             
             if (!ignoring && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
                 AppLog.d(TAG, "Requesting battery optimization permission")
+                writeDebugLog("Requesting battery optimization permission")
                 val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
                 intent.data = android.net.Uri.parse("package:$pkg")
                 AppLog.d(TAG, "Starting battery optimization activity")
+                writeDebugLog("Starting battery optimization activity")
                 startActivity(intent)
             } else {
-                AppLog.d(TAG, "Battery optimization already granted or not needed (ignoring: $ignoring, API: ${android.os.Build.VERSION.SDK_INT})")
+                val reason = if (ignoring) "already ignoring" else "API level too low"
+                AppLog.d(TAG, "Battery optimization not requested: $reason (ignoring: $ignoring, API: ${android.os.Build.VERSION.SDK_INT})")
+                writeDebugLog("Battery optimization not requested: $reason (ignoring: $ignoring, API: ${android.os.Build.VERSION.SDK_INT})")
             }
         } catch (e: Exception) {
             AppLog.w(TAG, "Battery optimization request failed", e)
+            writeDebugLog("Battery optimization request failed: ${e.message}")
         }
         // Always proceed to check service after battery optimization request
         AppLog.d(TAG, "Proceeding to checkAndStartService")
+        writeDebugLog("Proceeding to checkAndStartService")
         checkAndStartService()
     }
     
