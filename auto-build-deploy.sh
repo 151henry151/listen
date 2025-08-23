@@ -55,15 +55,39 @@ check_for_new_commits() {
     fi
 }
 
+# Function to prepare repository for pull (stash gradle artifacts)
+prepare_for_pull() {
+    cd "$REPO_DIR"
+    
+    # Check if there are any uncommitted changes in gradle directory
+    if git status --porcelain | grep -q "^ M .gradle/"; then
+        log "Stashing gradle build artifacts to prevent merge conflicts..."
+        git stash push -m "Auto-stash: Gradle build artifacts $(date '+%Y-%m-%d %H:%M:%S')" .gradle/
+        return 0
+    fi
+    
+    return 0
+}
+
 # Function to build and deploy APK
 build_and_deploy() {
     cd "$REPO_DIR"
     
     log "Starting build and deploy process..."
     
+    # Prepare repository for pull (stash gradle artifacts if needed)
+    prepare_for_pull
+    
     # Pull latest changes
     log "Pulling latest changes..."
-    git pull origin master
+    if ! git pull origin master; then
+        error "Failed to pull latest changes from remote. Cannot proceed with build."
+        return 1
+    fi
+    
+    # Verify we're on the latest commit
+    CURRENT_COMMIT=$(git rev-parse HEAD)
+    log "Building APK with commit: ${CURRENT_COMMIT:0:8}"
     
     # Set up environment
     export ANDROID_HOME=$HOME/android-sdk
