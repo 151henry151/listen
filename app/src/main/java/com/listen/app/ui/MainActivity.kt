@@ -367,10 +367,28 @@ class MainActivity : AppCompatActivity() {
 
     private fun requestCallLogPermissionIfNeeded() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) {
-            checkAndStartService()
+            requestBatteryOptimizationPermission()
         } else {
             requestCallLogPermissionLauncher.launch(Manifest.permission.READ_CALL_LOG)
         }
+    }
+    
+    /** Request battery optimization permission */
+    private fun requestBatteryOptimizationPermission() {
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            val pkg = packageName
+            val ignoring = pm.isIgnoringBatteryOptimizations(pkg)
+            if (!ignoring && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                intent.data = android.net.Uri.parse("package:$pkg")
+                startActivity(intent)
+            }
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Battery optimization request failed", e)
+        }
+        // Always proceed to check service after battery optimization request
+        checkAndStartService()
     }
     
     /** Show permission rationale dialog */

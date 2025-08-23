@@ -187,7 +187,6 @@ class ListenForegroundService : Service() {
         if (!isServiceRunning) {
             startForegroundService()
             ensureWakeLock()
-            requestIgnoreBatteryOptimizations()
             applyAdaptiveBehavior()
             val started = startRecording()
             if (started) {
@@ -544,23 +543,7 @@ class ListenForegroundService : Service() {
         }
     }
 
-    private fun requestIgnoreBatteryOptimizations() {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-                val pkg = packageName
-                val ignoring = pm.isIgnoringBatteryOptimizations(pkg)
-                if (!ignoring) {
-                    val intent = Intent(AndroidSettings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                    intent.data = Uri.parse("package:$pkg")
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    startActivity(intent)
-                }
-            }
-        } catch (e: Exception) {
-            AppLog.w(TAG, "Battery optimization request failed", e)
-        }
-    }
+
 
     // Telephony monitoring
     private fun initTelephonyMonitoring() {
