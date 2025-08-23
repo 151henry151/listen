@@ -389,7 +389,6 @@ class MainActivity : AppCompatActivity() {
     private fun checkAndStartService() {
         if (settings.isServiceEnabled) {
             AppLog.d(TAG, "Service is enabled, starting...")
-            promptBatteryOptimizationIfNeeded()
             ListenForegroundService.start(this)
         } else {
             AppLog.d(TAG, "Service is disabled")
@@ -510,7 +509,6 @@ class MainActivity : AppCompatActivity() {
             }
             
             settings.isServiceEnabled = true
-            promptBatteryOptimizationIfNeeded()
             ListenForegroundService.start(this)
             Toast.makeText(this, getString(R.string.msg_service_started), Toast.LENGTH_SHORT).show()
             
