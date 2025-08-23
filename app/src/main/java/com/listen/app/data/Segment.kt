@@ -35,6 +35,9 @@ data class Segment(
     /** Caller ID (incoming) or dialed number (outgoing) when available */
     val phoneNumber: String? = null,
     
+    /** Whether this segment has been saved to Downloads */
+    val isSavedToDownloads: Boolean = false,
+    
     /** Creation timestamp */
     val createdAt: Long = System.currentTimeMillis()
 ) {

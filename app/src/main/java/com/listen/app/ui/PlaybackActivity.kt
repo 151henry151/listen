@@ -234,6 +234,10 @@ class PlaybackActivity : AppCompatActivity() {
                 
                 withContext(Dispatchers.Main) {
                     if (savedFile != null) {
+                        // Mark segment as saved in database
+                        val updatedSegment = segment.copy(isSavedToDownloads = true)
+                        database.segmentDao().updateSegment(updatedSegment)
+                        
                         Toast.makeText(
                             this@PlaybackActivity,
                             getString(R.string.msg_save_success),
@@ -323,36 +327,36 @@ class PlaybackActivity : AppCompatActivity() {
         }
     }
     
-    /** Delete all segments */
+    /** Delete all rotating segments (preserve saved segments) */
     private fun deleteAllSegments() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val success = SegmentManager.deleteAllSegments(this@PlaybackActivity)
+                val success = SegmentManager.deleteRotatingSegments(this@PlaybackActivity)
                 
                 withContext(Dispatchers.Main) {
                     if (success) {
                         Toast.makeText(
                             this@PlaybackActivity,
-                            getString(R.string.msg_delete_all_success),
+                            getString(R.string.msg_delete_rotating_success),
                             Toast.LENGTH_LONG
                         ).show()
                         
-                        // Stop playback since all segments are gone
+                        // Stop playback since all rotating segments are gone
                         stopPlayback()
                     } else {
                         Toast.makeText(
                             this@PlaybackActivity,
-                            getString(R.string.msg_delete_all_error),
+                            getString(R.string.msg_delete_rotating_error),
                             Toast.LENGTH_LONG
                         ).show()
                     }
                 }
             } catch (e: Exception) {
-                AppLog.e(TAG, "Error deleting all segments", e)
+                AppLog.e(TAG, "Error deleting rotating segments", e)
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@PlaybackActivity,
-                        getString(R.string.msg_delete_all_error),
+                        getString(R.string.msg_delete_rotating_error),
                         Toast.LENGTH_LONG
                     ).show()
                 }
