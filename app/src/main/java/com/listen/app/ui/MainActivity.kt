@@ -72,26 +72,11 @@ class MainActivity : AppCompatActivity() {
         } else {
             AppLog.w(TAG, "Notification permission denied")
         }
-        // Skip phone call permissions for now
-        writeDebugLog("Skipping phone call permissions")
+        // Skip phone call permissions and go directly to battery optimization
+        requestBatteryOptimizationPermission()
     }
 
-    private val requestPhoneStatePermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (!isGranted) {
-            AppLog.w(TAG, "READ_PHONE_STATE denied; call metadata unavailable")
-        }
-        // Next, request READ_CALL_LOG (optional)
-        requestCallLogPermissionIfNeeded()
-    }
 
-    private val requestCallLogPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { _ ->
-        // Regardless of grant/deny, proceed to start service
-        checkAndStartService()
-    }
     
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -329,40 +314,20 @@ class MainActivity : AppCompatActivity() {
                     Manifest.permission.POST_NOTIFICATIONS
                 ) == PackageManager.PERMISSION_GRANTED -> {
                     AppLog.d(TAG, "Notification permission already granted")
-                    requestPhoneStatePermissionOrStart()
+                    requestBatteryOptimizationPermission()
                 }
                 else -> {
                     requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             }
         } else {
-            requestPhoneStatePermissionOrStart()
-        }
-    }
-
-
-
-    private fun requestPhoneStatePermissionOrStart() {
-        when {
-            ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_PHONE_STATE
-            ) == PackageManager.PERMISSION_GRANTED -> {
-                requestCallLogPermissionIfNeeded()
-            }
-            else -> {
-                requestPhoneStatePermissionLauncher.launch(Manifest.permission.READ_PHONE_STATE)
-            }
-        }
-    }
-
-    private fun requestCallLogPermissionIfNeeded() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) {
             requestBatteryOptimizationPermission()
-        } else {
-            requestCallLogPermissionLauncher.launch(Manifest.permission.READ_CALL_LOG)
         }
     }
+
+
+
+
     
     /** Request battery optimization permission */
     private fun requestBatteryOptimizationPermission() {
@@ -444,27 +409,8 @@ class MainActivity : AppCompatActivity() {
                 
                 writeDebugLog("Storage info retrieved: stats=$storageStats, available=$availableStorage, segments=$segmentCount")
                 
-                // Determine recording status: if service is enabled and running, assume it's recording
-                // unless we have explicit broadcast data saying otherwise
-                val isRecording = if (isServiceEnabled && isServiceActuallyRunning) {
-                    // Service is enabled and running, so it should be recording
-                    // Only show as not recording if we have recent broadcast data saying it's not recording
-                    val hasRecentBroadcast = lastStatusBroadcastTime > 0 && 
-                        (System.currentTimeMillis() - lastStatusBroadcastTime) < 5000 // 5 seconds
-                    if (hasRecentBroadcast) {
-                        lastRecordingState // Use broadcast data if recent
-                    } else {
-                        true // Assume recording if service is running and no recent broadcast
-                    }
-                } else {
-                    false // Service not running, definitely not recording
-                }
-                
-                // Debug logging for status determination
-                writeDebugLog("Status debug: isServiceEnabled=$isServiceEnabled, isServiceActuallyRunning=$isServiceActuallyRunning")
-                writeDebugLog("Status debug: lastStatusBroadcastTime=$lastStatusBroadcastTime, lastRecordingState=$lastRecordingState")
-                writeDebugLog("Status debug: hasRecentBroadcast=${lastStatusBroadcastTime > 0 && (System.currentTimeMillis() - lastStatusBroadcastTime) < 5000}")
-                writeDebugLog("Status debug: final isRecording=$isRecording")
+                // Simple recording status: if service is enabled and running, show as recording
+                val isRecording = isServiceEnabled && isServiceActuallyRunning
                 
                 // Update status display
                 if (isRecording) {
