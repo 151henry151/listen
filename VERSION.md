@@ -1,6 +1,6 @@
 # Listen App - Version Information
 
-## Current Version: 1.0.0
+## Current Version: 1.0.0 (Build 2)
 
 **Release Date**: August 23, 2025  
 **Package Name**: com.romp.listen.app  
