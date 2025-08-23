@@ -25,6 +25,10 @@ interface SegmentDao {
     @Query("SELECT * FROM segments WHERE endTime < :timestamp ORDER BY startTime ASC")
     suspend fun getSegmentsOlderThan(timestamp: Long): List<Segment>
     
+    /** Get only rotating segments (not saved to Downloads) */
+    @Query("SELECT * FROM segments WHERE isSavedToDownloads = 0 ORDER BY startTime DESC")
+    suspend fun getRotatingSegments(): List<Segment>
+    
     /** Get the oldest segments (for cleanup) */
     @Query("SELECT * FROM segments ORDER BY startTime ASC LIMIT :limit")
     suspend fun getOldestSegments(limit: Int): List<Segment>
@@ -60,6 +64,10 @@ interface SegmentDao {
     /** Delete all segments */
     @Query("DELETE FROM segments")
     suspend fun deleteAllSegments()
+    
+    /** Delete only rotating segments (not saved to Downloads) */
+    @Query("DELETE FROM segments WHERE isSavedToDownloads = 0")
+    suspend fun deleteRotatingSegments()
     
     /** Get segment by ID */
     @Query("SELECT * FROM segments WHERE id = :segmentId")

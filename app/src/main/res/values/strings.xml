@@ -126,13 +126,15 @@
     <!-- Delete Dialog -->
     <string name="dialog_delete_segment_title">Delete Recording</string>
     <string name="dialog_delete_segment_message">Are you sure you want to delete this recording? This action cannot be undone.</string>
-    <string name="dialog_delete_all_title">Clear All Recordings</string>
-    <string name="dialog_delete_all_message">Are you sure you want to delete all recordings? This action cannot be undone.</string>
+    <string name="dialog_delete_all_title">Clear Rotating Recordings</string>
+    <string name="dialog_delete_all_message">Are you sure you want to clear all rotating recordings? Saved recordings will be preserved. This action cannot be undone.</string>
     <string name="btn_delete">Delete</string>
     <string name="btn_delete_all">Clear All</string>
     <string name="btn_cancel">Cancel</string>
     <string name="msg_delete_success">Recording deleted successfully</string>
     <string name="msg_delete_all_success">All recordings cleared successfully</string>
+    <string name="msg_delete_rotating_success">Rotating recordings cleared successfully</string>
     <string name="msg_delete_error">Error deleting recording</string>
     <string name="msg_delete_all_error">Error clearing recordings</string>
+    <string name="msg_delete_rotating_error">Error clearing rotating recordings</string>
 </resources> 

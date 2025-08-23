@@ -83,6 +83,43 @@ object SegmentManager {
     }
     
     /**
+     * Delete only rotating segments (not saved to Downloads)
+     * @param context Application context
+     * @return true if successful, false otherwise
+     */
+    suspend fun deleteRotatingSegments(context: Context): Boolean {
+        return try {
+            val database = ListenDatabase.getDatabase(context)
+            
+            // Get only rotating segments
+            val rotatingSegments = database.segmentDao().getRotatingSegments()
+            
+            var successCount = 0
+            var totalCount = rotatingSegments.size
+            
+            // Delete each file
+            for (segment in rotatingSegments) {
+                val file = File(segment.filePath)
+                if (file.exists() && file.delete()) {
+                    successCount++
+                } else if (!file.exists()) {
+                    successCount++ // Consider it "deleted" if it doesn't exist
+                }
+            }
+            
+            // Clear only rotating segments from database
+            database.segmentDao().deleteRotatingSegments()
+            
+            Log.d(TAG, "Successfully deleted $successCount/$totalCount rotating segments")
+            successCount == totalCount
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting rotating segments", e)
+            false
+        }
+    }
+    
+    /**
      * Get the total number of segments
      * @param context Application context
      * @return Number of segments

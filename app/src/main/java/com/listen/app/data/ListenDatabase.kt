@@ -12,7 +12,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 @Database(
     entities = [Segment::class],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class ListenDatabase : RoomDatabase() {
@@ -37,6 +37,12 @@ abstract class ListenDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE segments ADD COLUMN phoneNumber TEXT")
             }
         }
+
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE segments ADD COLUMN isSavedToDownloads INTEGER NOT NULL DEFAULT 0")
+            }
+        }
         
         fun getDatabase(context: Context): ListenDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -45,7 +51,7 @@ abstract class ListenDatabase : RoomDatabase() {
                     ListenDatabase::class.java,
                     "listen_database"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .fallbackToDestructiveMigration() // Add fallback for migration failures
                 .build()
                 INSTANCE = instance
