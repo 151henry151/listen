@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace 'com.listen.app'
+    namespace 'com.romp.listen.app'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.listen.app"
+        applicationId "com.romp.listen.app"
         minSdk 26
         targetSdk 34
         versionCode 1
@@ -20,17 +20,6 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    buildTypes {
-        release {
-            minifyEnabled true
-            shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-        debug {
-            // Placeholder for debug-only configs
-        }
-    }
-    
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
@@ -44,9 +33,26 @@ android {
         viewBinding true
     }
     
+    signingConfigs {
+        release {
+            storeFile file('listen-release-key.keystore')
+            storePassword 'listen123456'
+            keyAlias 'listen-key-alias'
+            keyPassword 'listen123456'
+        }
+    }
 
-    
-
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+        debug {
+            // Placeholder for debug-only configs
+        }
+    }
 }
 
 dependencies {
