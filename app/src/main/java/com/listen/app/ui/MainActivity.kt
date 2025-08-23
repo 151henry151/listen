@@ -527,6 +527,12 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             
+            // Check if user has given consent for recording
+            if (!settings.hasUserConsentedToRecording) {
+                showRecordingConsentDialog()
+                return
+            }
+            
             settings.isServiceEnabled = true
             promptBatteryOptimizationIfNeeded()
             ListenForegroundService.start(this)
@@ -537,6 +543,19 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Microphone permission required", Toast.LENGTH_SHORT).show()
             requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
+    }
+    
+    /** Show recording consent dialog */
+    private fun showRecordingConsentDialog() {
+        val consentDialog = ConsentDialog.newInstance()
+        consentDialog.setOnConsentGranted {
+            settings.hasUserConsentedToRecording = true
+            startService() // Retry starting service after consent
+        }
+        consentDialog.setOnConsentDenied {
+            Toast.makeText(this, "Recording consent required to use this app", Toast.LENGTH_LONG).show()
+        }
+        consentDialog.show(supportFragmentManager, ConsentDialog.TAG)
     }
     
     /** Stop the recording service */

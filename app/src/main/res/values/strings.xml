@@ -53,6 +53,13 @@
     <string name="tab_saved_segments">Saved</string>
     <string name="no_saved_segments">No saved segments available</string>
     
+    <!-- Recording Consent -->
+    <string name="consent_title">Audio Recording Consent</string>
+    <string name="consent_message">This app records audio continuously in the background to capture ambient sounds and conversations. By accepting, you acknowledge that:\n\n• Audio will be recorded and stored on your device\n• Recordings are for personal use only\n• You are responsible for complying with local recording laws\n• You must obtain consent from others before recording them</string>
+    <string name="consent_legal_notice">⚠️ Legal Notice: Recording conversations without consent may be illegal in your jurisdiction. Always respect others\' privacy and obtain proper consent before recording.</string>
+    <string name="consent_accept">I Accept</string>
+    <string name="consent_decline">Decline</string>
+    
     <!-- Settings -->
     <string name="title_settings">Settings</string>
     <string name="setting_segment_duration">Segment Duration</string>

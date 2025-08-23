@@ -99,6 +99,11 @@ class SettingsManager(context: Context) {
         get() = prefs.getBoolean(KEY_SHOW_NOTIFICATION, true)
         set(value) = prefs.edit { putBoolean(KEY_SHOW_NOTIFICATION, value) }
     
+    /** Whether user has consented to audio recording */
+    var hasUserConsentedToRecording: Boolean
+        get() = prefs.getBoolean(KEY_USER_CONSENTED_TO_RECORDING, false)
+        set(value) = prefs.edit { putBoolean(KEY_USER_CONSENTED_TO_RECORDING, value) }
+    
     /** Get recent segments (placeholder - would need database access) */
     fun getRecentSegments(limit: Int = 10): List<String> {
         // This is a placeholder implementation
@@ -142,6 +147,7 @@ class SettingsManager(context: Context) {
         private const val KEY_POWER_SAVING_MODE = "power_saving_mode"
         private const val KEY_ADAPTIVE_PERFORMANCE = "adaptive_performance"
         private const val KEY_SHOW_NOTIFICATION = "show_notification"
+        private const val KEY_USER_CONSENTED_TO_RECORDING = "user_consented_to_recording"
         
         // Default values
         const val DEFAULT_SEGMENT_DURATION = 60 // 1 minute
