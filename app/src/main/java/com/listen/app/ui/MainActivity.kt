@@ -336,9 +336,12 @@ class MainActivity : AppCompatActivity() {
             val pkg = packageName
             val ignoring = pm.isIgnoringBatteryOptimizations(pkg)
             if (!ignoring && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                AppLog.d(TAG, "Requesting battery optimization permission")
                 val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
                 intent.data = android.net.Uri.parse("package:$pkg")
                 startActivity(intent)
+            } else {
+                AppLog.d(TAG, "Battery optimization already granted or not needed")
             }
         } catch (e: Exception) {
             AppLog.w(TAG, "Battery optimization request failed", e)
@@ -409,8 +412,20 @@ class MainActivity : AppCompatActivity() {
                 
                 writeDebugLog("Storage info retrieved: stats=$storageStats, available=$availableStorage, segments=$segmentCount")
                 
-                // Simple recording status: if service is enabled and running, show as recording
-                val isRecording = isServiceEnabled && isServiceActuallyRunning
+                // Determine recording status: use both service state and broadcast data
+                val isRecording = if (isServiceEnabled && isServiceActuallyRunning) {
+                    // Service is enabled and running, so it should be recording
+                    // Use broadcast data if recent, otherwise assume recording
+                    val hasRecentBroadcast = lastStatusBroadcastTime > 0 && 
+                        (System.currentTimeMillis() - lastStatusBroadcastTime) < 5000 // 5 seconds
+                    if (hasRecentBroadcast) {
+                        lastRecordingState // Use broadcast data if recent
+                    } else {
+                        true // Assume recording if service is running and no recent broadcast
+                    }
+                } else {
+                    false // Service not running, definitely not recording
+                }
                 
                 // Update status display
                 if (isRecording) {
@@ -460,12 +475,15 @@ class MainActivity : AppCompatActivity() {
     
     /** Start the recording service */
     fun startService() {
+        AppLog.d(TAG, "startService() called")
+        
         // All permissions should already be granted from initial permission flow
         // If any permission is missing, redirect to settings
         if (ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.RECORD_AUDIO
             ) != PackageManager.PERMISSION_GRANTED) {
+            AppLog.w(TAG, "Microphone permission not granted")
             Toast.makeText(this, "Microphone permission required. Please grant permissions in app settings.", Toast.LENGTH_LONG).show()
             return
         }
@@ -476,6 +494,7 @@ class MainActivity : AppCompatActivity() {
                     this,
                     Manifest.permission.FOREGROUND_SERVICE_MICROPHONE
                 ) != PackageManager.PERMISSION_GRANTED) {
+                AppLog.w(TAG, "Foreground service permission not granted")
                 Toast.makeText(this, "Foreground service permission required. Please grant permissions in app settings.", Toast.LENGTH_LONG).show()
                 return
             }
@@ -483,10 +502,12 @@ class MainActivity : AppCompatActivity() {
         
         // Check if user has given consent for recording
         if (!settings.hasUserConsentedToRecording) {
+            AppLog.d(TAG, "User consent not given, showing consent dialog")
             showRecordingConsentDialog()
             return
         }
         
+        AppLog.d(TAG, "All permissions granted, starting service")
         settings.isServiceEnabled = true
         ListenForegroundService.start(this)
         Toast.makeText(this, getString(R.string.msg_service_started), Toast.LENGTH_SHORT).show()
@@ -534,15 +555,23 @@ class MainActivity : AppCompatActivity() {
                 it.service.className == ListenForegroundService::class.java.name 
             }
             
-            // Method 2: Check if we're receiving broadcasts AND service is enabled
-            // Only consider broadcasts as valid if the service is supposed to be enabled
+            // Method 2: Check if we're receiving broadcasts (more reliable indicator)
+            // If we've received a broadcast in the last 5 seconds, service is likely running
             val lastBroadcast = lastStatusBroadcastTime
             val isReceivingBroadcasts = lastBroadcast > 0 && 
-                (System.currentTimeMillis() - lastBroadcast) < 3000 &&
-                settings.isServiceEnabled
+                (System.currentTimeMillis() - lastBroadcast) < 5000
             
-            // Return true if either method indicates the service is running
-            isRunningViaActivityManager || isReceivingBroadcasts
+            // Method 3: Check if service is enabled and we have recent broadcast data
+            val hasRecentRecordingState = lastBroadcast > 0 && 
+                (System.currentTimeMillis() - lastBroadcast) < 5000 &&
+                lastRecordingState
+            
+            // Return true if any method indicates the service is running
+            val isRunning = isRunningViaActivityManager || isReceivingBroadcasts || hasRecentRecordingState
+            
+            AppLog.d(TAG, "Service detection: ActivityManager=$isRunningViaActivityManager, Broadcasts=$isReceivingBroadcasts, RecentState=$hasRecentRecordingState, Final=$isRunning")
+            
+            isRunning
         } catch (e: Exception) {
             AppLog.e(TAG, "Error checking service status", e)
             false
