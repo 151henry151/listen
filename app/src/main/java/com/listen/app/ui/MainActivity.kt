@@ -460,41 +460,40 @@ class MainActivity : AppCompatActivity() {
     
     /** Start the recording service */
     fun startService() {
+        // All permissions should already be granted from initial permission flow
+        // If any permission is missing, redirect to settings
         if (ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.RECORD_AUDIO
-            ) == PackageManager.PERMISSION_GRANTED) {
-            
-            // Check foreground service permission for Android 14+
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                if (ContextCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.FOREGROUND_SERVICE_MICROPHONE
-                    ) != PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(this, "Foreground service permission required", Toast.LENGTH_SHORT).show()
-                    requestForegroundServicePermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE)
-                    return
-                }
-            }
-            
-            // Check if user has given consent for recording
-            if (!settings.hasUserConsentedToRecording) {
-                showRecordingConsentDialog()
+            ) != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Microphone permission required. Please grant permissions in app settings.", Toast.LENGTH_LONG).show()
+            return
+        }
+        
+        // Check foreground service permission for Android 14+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.FOREGROUND_SERVICE_MICROPHONE
+                ) != PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Foreground service permission required. Please grant permissions in app settings.", Toast.LENGTH_LONG).show()
                 return
             }
-            
-            settings.isServiceEnabled = true
-            ListenForegroundService.start(this)
-            Toast.makeText(this, getString(R.string.msg_service_started), Toast.LENGTH_SHORT).show()
-            
-            // Set optimistic recording state since we just started the service
-            lastRecordingState = true
-            updateUI()
-            
-        } else {
-            Toast.makeText(this, "Microphone permission required", Toast.LENGTH_SHORT).show()
-            requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
+        
+        // Check if user has given consent for recording
+        if (!settings.hasUserConsentedToRecording) {
+            showRecordingConsentDialog()
+            return
+        }
+        
+        settings.isServiceEnabled = true
+        ListenForegroundService.start(this)
+        Toast.makeText(this, getString(R.string.msg_service_started), Toast.LENGTH_SHORT).show()
+        
+        // Set optimistic recording state since we just started the service
+        lastRecordingState = true
+        updateUI()
     }
     
     /** Show recording consent dialog */
@@ -550,20 +549,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    private fun promptBatteryOptimizationIfNeeded() {
-        try {
-            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-            val pkg = packageName
-            val ignoring = pm.isIgnoringBatteryOptimizations(pkg)
-            if (!ignoring && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                intent.data = android.net.Uri.parse("package:$pkg")
-                startActivity(intent)
-            }
-        } catch (e: Exception) {
-            AppLog.w(TAG, "Battery optimization prompt failed", e)
-        }
-    }
+
     
     /** Open playback activity */
     fun openPlayback() {
