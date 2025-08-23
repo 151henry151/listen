@@ -331,22 +331,29 @@ class MainActivity : AppCompatActivity() {
     
     /** Request battery optimization permission */
     private fun requestBatteryOptimizationPermission() {
+        AppLog.d(TAG, "requestBatteryOptimizationPermission called")
         try {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
             val pkg = packageName
+            AppLog.d(TAG, "Checking battery optimization for package: $pkg")
             val ignoring = pm.isIgnoringBatteryOptimizations(pkg)
+            AppLog.d(TAG, "Battery optimization ignoring: $ignoring")
+            AppLog.d(TAG, "Android version: ${android.os.Build.VERSION.SDK_INT}, M: ${android.os.Build.VERSION_CODES.M}")
+            
             if (!ignoring && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
                 AppLog.d(TAG, "Requesting battery optimization permission")
                 val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
                 intent.data = android.net.Uri.parse("package:$pkg")
+                AppLog.d(TAG, "Starting battery optimization activity")
                 startActivity(intent)
             } else {
-                AppLog.d(TAG, "Battery optimization already granted or not needed")
+                AppLog.d(TAG, "Battery optimization already granted or not needed (ignoring: $ignoring, API: ${android.os.Build.VERSION.SDK_INT})")
             }
         } catch (e: Exception) {
             AppLog.w(TAG, "Battery optimization request failed", e)
         }
         // Always proceed to check service after battery optimization request
+        AppLog.d(TAG, "Proceeding to checkAndStartService")
         checkAndStartService()
     }
     
