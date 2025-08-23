@@ -172,12 +172,21 @@ class PlaybackActivity : AppCompatActivity() {
         }
         
         btnShare.setOnClickListener {
+            AppLog.d(TAG, "Share button clicked, current tab: ${viewPager.currentItem}")
             when (viewPager.currentItem) {
                 0 -> {
+                    AppLog.d(TAG, "Share not available for rotating segments")
                     // Share not available for rotating segments
                 }
-                1 -> currentSavedSegment?.let { savedSegment ->
-                    shareSavedSegment(savedSegment)
+                1 -> {
+                    AppLog.d(TAG, "Share clicked for saved segments tab, currentSavedSegment: $currentSavedSegment")
+                    currentSavedSegment?.let { savedSegment ->
+                        AppLog.d(TAG, "Calling shareSavedSegment with: ${savedSegment.filePath}")
+                        shareSavedSegment(savedSegment)
+                    } ?: run {
+                        AppLog.w(TAG, "No saved segment selected for sharing")
+                        Toast.makeText(this@PlaybackActivity, "Please select a saved recording to share", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
@@ -666,6 +675,8 @@ class PlaybackActivity : AppCompatActivity() {
     
     /** Update current saved segment information display */
     private fun updateCurrentSavedSegmentInfo(savedSegment: SavedSegment) {
+        AppLog.d(TAG, "updateCurrentSavedSegmentInfo called with: ${savedSegment.filename}")
+        currentSavedSegment = savedSegment
         tvCurrentSegment.text = savedSegment.filename
         currentSavedSegmentIndex = savedSegments.indexOf(savedSegment)
         updateSavedNavigationButtons()
@@ -676,6 +687,7 @@ class PlaybackActivity : AppCompatActivity() {
         btnPrevious.isEnabled = currentSavedSegmentIndex > 0
         btnNext.isEnabled = currentSavedSegmentIndex < savedSegments.size - 1
         btnSave.isEnabled = false // Already saved
+        btnShare.isEnabled = currentSavedSegment != null
         btnDelete.isEnabled = currentSavedSegment != null
     }
     
@@ -963,15 +975,30 @@ class PlaybackActivity : AppCompatActivity() {
     }
 
     private fun shareSavedSegment(savedSegment: SavedSegment) {
+        AppLog.d(TAG, "shareSavedSegment called with file: ${savedSegment.filePath}")
         val file = savedSegment.file
+        AppLog.d(TAG, "File exists: ${file.exists()}, File size: ${file.length()}")
+        
         if (file.exists()) {
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "audio/*"
-                putExtra(Intent.EXTRA_STREAM, FileProvider.getUriForFile(this@PlaybackActivity, "${this@PlaybackActivity.packageName}.fileprovider", file))
-                putExtra(Intent.EXTRA_TEXT, "Check out this saved recording!")
+            try {
+                val fileUri = FileProvider.getUriForFile(this@PlaybackActivity, "${this@PlaybackActivity.packageName}.fileprovider", file)
+                AppLog.d(TAG, "FileProvider URI: $fileUri")
+                
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "audio/*"
+                    putExtra(Intent.EXTRA_STREAM, fileUri)
+                    putExtra(Intent.EXTRA_TEXT, "Check out this saved recording!")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                
+                AppLog.d(TAG, "Starting share activity")
+                startActivity(Intent.createChooser(shareIntent, "Share Saved Recording"))
+            } catch (e: Exception) {
+                AppLog.e(TAG, "Error sharing saved segment", e)
+                Toast.makeText(this, "Error sharing file: ${e.message}", Toast.LENGTH_SHORT).show()
             }
-            startActivity(Intent.createChooser(shareIntent, "Share Saved Recording"))
         } else {
+            AppLog.w(TAG, "Saved segment file not found: ${savedSegment.filePath}")
             Toast.makeText(this, "Saved segment file not found for sharing.", Toast.LENGTH_SHORT).show()
         }
     }
