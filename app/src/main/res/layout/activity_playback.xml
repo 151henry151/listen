@@ -160,6 +160,16 @@
                 android:enabled="false" />
 
             <Button
+                android:id="@+id/btn_share"
+                style="@style/Widget.Listen.Button.Primary"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/btn_share"
+                android:enabled="false"
+                android:visibility="gone" />
+
+            <Button
                 android:id="@+id/btn_delete"
                 style="@style/Widget.Listen.Button.Danger"
                 android:layout_width="wrap_content"

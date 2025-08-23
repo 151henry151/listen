@@ -16,6 +16,8 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.content.Context
+import android.content.Intent
+import androidx.core.content.FileProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import android.widget.Button
@@ -66,6 +68,7 @@ class PlaybackActivity : AppCompatActivity() {
     private lateinit var btnPrevious: Button
     private lateinit var btnNext: Button
     private lateinit var btnSave: Button
+    private lateinit var btnShare: Button
     private lateinit var btnDelete: Button
     private lateinit var btnClearAll: Button
     
@@ -112,6 +115,7 @@ class PlaybackActivity : AppCompatActivity() {
         btnPrevious = findViewById(R.id.btn_previous)
         btnNext = findViewById(R.id.btn_next)
         btnSave = findViewById(R.id.btn_save)
+        btnShare = findViewById(R.id.btn_share)
         btnDelete = findViewById(R.id.btn_delete)
         btnClearAll = findViewById(R.id.btn_clear_all)
         
@@ -167,6 +171,17 @@ class PlaybackActivity : AppCompatActivity() {
             }
         }
         
+        btnShare.setOnClickListener {
+            when (viewPager.currentItem) {
+                0 -> {
+                    // Share not available for rotating segments
+                }
+                1 -> currentSavedSegment?.let { savedSegment ->
+                    shareSavedSegment(savedSegment)
+                }
+            }
+        }
+        
         btnDelete.setOnClickListener {
             when (viewPager.currentItem) {
                 0 -> currentSegment?.let { segment ->
@@ -211,6 +226,7 @@ class PlaybackActivity : AppCompatActivity() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
                 setupFragmentListenersForCurrentTab()
+                updateNavigationButtons() // Update button visibility when tab changes
             }
         })
     }
@@ -271,18 +287,34 @@ class PlaybackActivity : AppCompatActivity() {
     private fun updateNavigationButtons() {
         when (viewPager.currentItem) {
             0 -> {
+                // Rotating segments tab
                 btnPrevious.isEnabled = currentSegmentIndex > 0
                 btnNext.isEnabled = currentSegmentIndex < segments.size - 1
                 btnSave.isEnabled = currentSegment != null
                 btnDelete.isEnabled = currentSegment != null
+                updateButtonVisibilityForRotatingTab()
             }
             1 -> {
+                // Saved segments tab
                 btnPrevious.isEnabled = currentSavedSegmentIndex > 0
                 btnNext.isEnabled = currentSavedSegmentIndex < savedSegments.size - 1
-                btnSave.isEnabled = false // Already saved
+                btnSave.isEnabled = false // Not needed for saved segments
                 btnDelete.isEnabled = currentSavedSegment != null
+                updateButtonVisibilityForSavedTab()
             }
         }
+    }
+    
+    /** Update button visibility for rotating segments tab */
+    private fun updateButtonVisibilityForRotatingTab() {
+        btnSave.visibility = android.view.View.VISIBLE
+        btnShare.visibility = android.view.View.GONE
+    }
+    
+    /** Update button visibility for saved segments tab */
+    private fun updateButtonVisibilityForSavedTab() {
+        btnSave.visibility = android.view.View.GONE
+        btnShare.visibility = android.view.View.VISIBLE
     }
     
     /** Play the previous segment */
@@ -927,6 +959,20 @@ class PlaybackActivity : AppCompatActivity() {
                 tvCurrentTime.text = formatMs(pos.toLong())
                 delay(250)
             }
+        }
+    }
+
+    private fun shareSavedSegment(savedSegment: SavedSegment) {
+        val file = savedSegment.file
+        if (file.exists()) {
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "audio/*"
+                putExtra(Intent.EXTRA_STREAM, FileProvider.getUriForFile(this@PlaybackActivity, "${this@PlaybackActivity.packageName}.fileprovider", file))
+                putExtra(Intent.EXTRA_TEXT, "Check out this saved recording!")
+            }
+            startActivity(Intent.createChooser(shareIntent, "Share Saved Recording"))
+        } else {
+            Toast.makeText(this, "Saved segment file not found for sharing.", Toast.LENGTH_SHORT).show()
         }
     }
     
