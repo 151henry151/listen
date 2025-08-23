@@ -1,0 +1,14 @@
+[Unit]
+Description=Listen App Webhook Server
+After=network.target
+
+[Service]
+Type=simple
+User=henry
+WorkingDirectory=/home/henry/listen
+ExecStart=/usr/bin/python3 /home/henry/listen/webhook-server.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
