@@ -8,6 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import com.listen.app.R
 import com.listen.app.data.ListenDatabase
 import com.listen.app.data.Segment
+import com.listen.app.data.SavedSegment
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.io.File
@@ -31,6 +32,11 @@ import com.listen.app.util.SegmentManager
 import android.app.AlertDialog
 import android.widget.EditText
 import android.widget.Toast
+import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.tabs.TabLayout
+import com.google.android.material.tabs.TabLayoutMediator
+import com.listen.app.ui.fragments.RotatingSegmentsFragment
+import com.listen.app.ui.fragments.SavedSegmentsFragment
 
 /**
  * Activity for playing back recorded audio segments
@@ -40,11 +46,17 @@ class PlaybackActivity : AppCompatActivity() {
     private lateinit var database: ListenDatabase
     private var mediaPlayer: MediaPlayer? = null
     private var currentSegment: Segment? = null
+    private var currentSavedSegment: SavedSegment? = null
     
     private var audioManager: AudioManager? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     
-    private lateinit var rvSegments: RecyclerView
+    private lateinit var tabLayout: TabLayout
+    private lateinit var viewPager: ViewPager2
+    private lateinit var pagerAdapter: PlaybackPagerAdapter
+    private lateinit var rotatingSegmentsFragment: RotatingSegmentsFragment
+    private lateinit var savedSegmentsFragment: SavedSegmentsFragment
+    
     private lateinit var tvCurrentSegment: TextView
     private lateinit var seekBar: SeekBar
     private lateinit var tvCurrentTime: TextView
@@ -54,10 +66,13 @@ class PlaybackActivity : AppCompatActivity() {
     private lateinit var btnPrevious: Button
     private lateinit var btnNext: Button
     private lateinit var btnSave: Button
+    private lateinit var btnDelete: Button
     private lateinit var btnClearAll: Button
-    private lateinit var adapter: SegmentAdapter
+    
     private var segments: List<Segment> = emptyList()
+    private var savedSegments: List<SavedSegment> = emptyList()
     private var currentSegmentIndex: Int = -1
+    private var currentSavedSegmentIndex: Int = -1
     
     private var progressJob: Job? = null
     
@@ -74,6 +89,7 @@ class PlaybackActivity : AppCompatActivity() {
         
         // Load segments
         loadSegments()
+        loadSavedSegments()
     }
     
     override fun onDestroy() {
@@ -85,7 +101,8 @@ class PlaybackActivity : AppCompatActivity() {
     
     /** Set up the user interface */
     private fun setupUI() {
-        rvSegments = findViewById(R.id.rv_segments)
+        tabLayout = findViewById(R.id.tab_layout)
+        viewPager = findViewById(R.id.view_pager)
         tvCurrentSegment = findViewById(R.id.tv_current_segment)
         seekBar = findViewById(R.id.seek_bar)
         tvCurrentTime = findViewById(R.id.tv_current_time)
@@ -95,23 +112,23 @@ class PlaybackActivity : AppCompatActivity() {
         btnPrevious = findViewById(R.id.btn_previous)
         btnNext = findViewById(R.id.btn_next)
         btnSave = findViewById(R.id.btn_save)
+        btnDelete = findViewById(R.id.btn_delete)
         btnClearAll = findViewById(R.id.btn_clear_all)
         
-        adapter = SegmentAdapter(
-            emptyList(),
-            onClick = { segment ->
-                playSegment(segment)
-                updateCurrentSegmentInfo(segment)
-            },
-            onSaveClick = { segment ->
-                showSaveDialog(segment)
-            },
-            onDeleteClick = { segment ->
-                showDeleteSegmentDialog(segment)
+        // Set up ViewPager and TabLayout
+        pagerAdapter = PlaybackPagerAdapter(this)
+        viewPager.adapter = pagerAdapter
+        
+        TabLayoutMediator(tabLayout, viewPager) { tab, position ->
+            tab.text = when (position) {
+                0 -> getString(R.string.tab_rotating_segments)
+                1 -> getString(R.string.tab_saved_segments)
+                else -> null
             }
-        )
-        rvSegments.layoutManager = LinearLayoutManager(this)
-        rvSegments.adapter = adapter
+        }.attach()
+        
+        // Set up fragment click listeners
+        setupFragmentListeners()
         
         btnPlayPause.setOnClickListener {
             if (isPlaying()) {
@@ -137,13 +154,33 @@ class PlaybackActivity : AppCompatActivity() {
         }
         
         btnSave.setOnClickListener {
-            currentSegment?.let { segment ->
-                showSaveDialog(segment)
+            when (viewPager.currentItem) {
+                0 -> currentSegment?.let { segment ->
+                    showSaveDialog(segment)
+                }
+                1 -> currentSavedSegment?.let { savedSegment ->
+                    // Already saved, show message
+                    Toast.makeText(this, "Segment is already saved", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        
+        btnDelete.setOnClickListener {
+            when (viewPager.currentItem) {
+                0 -> currentSegment?.let { segment ->
+                    showDeleteSegmentDialog(segment)
+                }
+                1 -> currentSavedSegment?.let { savedSegment ->
+                    showDeleteSavedSegmentDialog(savedSegment)
+                }
             }
         }
         
         btnClearAll.setOnClickListener {
-            showDeleteAllDialog()
+            when (viewPager.currentItem) {
+                0 -> showDeleteAllDialog()
+                1 -> showDeleteAllSavedDialog()
+            }
         }
         
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -158,6 +195,23 @@ class PlaybackActivity : AppCompatActivity() {
         })
         
         AppLog.d(TAG, "PlaybackActivity UI setup completed")
+    }
+    
+    /** Set up fragment click listeners */
+    private fun setupFragmentListeners() {
+        // Get fragments from adapter
+        val rotatingFragment = supportFragmentManager.findFragmentByTag("f0") as? RotatingSegmentsFragment
+        val savedFragment = supportFragmentManager.findFragmentByTag("f1") as? SavedSegmentsFragment
+        
+        rotatingFragment?.setOnSegmentClickListener { segment ->
+            playSegment(segment)
+            updateCurrentSegmentInfo(segment)
+        }
+        
+        savedFragment?.setOnSavedSegmentClickListener { savedSegment ->
+            playSavedSegment(savedSegment)
+            updateCurrentSavedSegmentInfo(savedSegment)
+        }
     }
     
     /** Update the play/pause button text */
@@ -178,26 +232,59 @@ class PlaybackActivity : AppCompatActivity() {
     
     /** Update navigation buttons state */
     private fun updateNavigationButtons() {
-        btnPrevious.isEnabled = currentSegmentIndex > 0
-        btnNext.isEnabled = currentSegmentIndex < segments.size - 1
-        btnSave.isEnabled = currentSegment != null
+        when (viewPager.currentItem) {
+            0 -> {
+                btnPrevious.isEnabled = currentSegmentIndex > 0
+                btnNext.isEnabled = currentSegmentIndex < segments.size - 1
+                btnSave.isEnabled = currentSegment != null
+                btnDelete.isEnabled = currentSegment != null
+            }
+            1 -> {
+                btnPrevious.isEnabled = currentSavedSegmentIndex > 0
+                btnNext.isEnabled = currentSavedSegmentIndex < savedSegments.size - 1
+                btnSave.isEnabled = false // Already saved
+                btnDelete.isEnabled = currentSavedSegment != null
+            }
+        }
     }
     
     /** Play the previous segment */
     private fun playPreviousSegment() {
-        if (currentSegmentIndex > 0) {
-            val previousSegment = segments[currentSegmentIndex - 1]
-            playSegment(previousSegment)
-            updateCurrentSegmentInfo(previousSegment)
+        when (viewPager.currentItem) {
+            0 -> {
+                if (currentSegmentIndex > 0) {
+                    val previousSegment = segments[currentSegmentIndex - 1]
+                    playSegment(previousSegment)
+                    updateCurrentSegmentInfo(previousSegment)
+                }
+            }
+            1 -> {
+                if (currentSavedSegmentIndex > 0) {
+                    val previousSavedSegment = savedSegments[currentSavedSegmentIndex - 1]
+                    playSavedSegment(previousSavedSegment)
+                    updateCurrentSavedSegmentInfo(previousSavedSegment)
+                }
+            }
         }
     }
     
     /** Play the next segment */
     private fun playNextSegment() {
-        if (currentSegmentIndex < segments.size - 1) {
-            val nextSegment = segments[currentSegmentIndex + 1]
-            playSegment(nextSegment)
-            updateCurrentSegmentInfo(nextSegment)
+        when (viewPager.currentItem) {
+            0 -> {
+                if (currentSegmentIndex < segments.size - 1) {
+                    val nextSegment = segments[currentSegmentIndex + 1]
+                    playSegment(nextSegment)
+                    updateCurrentSegmentInfo(nextSegment)
+                }
+            }
+            1 -> {
+                if (currentSavedSegmentIndex < savedSegments.size - 1) {
+                    val nextSavedSegment = savedSegments[currentSavedSegmentIndex + 1]
+                    playSavedSegment(nextSavedSegment)
+                    updateCurrentSavedSegmentInfo(nextSavedSegment)
+                }
+            }
         }
     }
     
@@ -226,11 +313,11 @@ class PlaybackActivity : AppCompatActivity() {
             .show()
     }
     
-    /** Save a segment to Downloads */
+    /** Save a segment to the custom saved segments directory */
     private fun saveSegment(segment: Segment, filename: String) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val savedFile = FileUtils.saveSegmentToDownloads(this@PlaybackActivity, segment, filename)
+                val savedFile = FileUtils.saveSegmentToSavedDirectory(this@PlaybackActivity, segment, filename)
                 
                 withContext(Dispatchers.Main) {
                     if (savedFile != null) {
@@ -239,6 +326,9 @@ class PlaybackActivity : AppCompatActivity() {
                             getString(R.string.msg_save_success),
                             Toast.LENGTH_LONG
                         ).show()
+                        
+                        // Refresh saved segments list
+                        loadSavedSegments()
                     } else {
                         Toast.makeText(
                             this@PlaybackActivity,
@@ -374,11 +464,213 @@ class PlaybackActivity : AppCompatActivity() {
         }
     }
     
+    /** Load saved segments from custom directory */
+    private fun loadSavedSegments() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val savedFiles = FileUtils.getSavedSegmentFiles()
+                val savedSegmentsList = savedFiles.map { file ->
+                    SavedSegment(file)
+                }
+                
+                withContext(Dispatchers.Main) {
+                    savedSegments = savedSegmentsList
+                    updateSavedSegmentsList(savedSegments)
+                }
+            } catch (e: Exception) {
+                AppLog.e(TAG, "Error loading saved segments", e)
+            }
+        }
+    }
+    
     /** Update the segments list in the UI */
     private fun updateSegmentsList(segments: List<Segment>) {
         this.segments = segments
-        adapter.submitList(segments)
+        val rotatingFragment = supportFragmentManager.findFragmentByTag("f0") as? RotatingSegmentsFragment
+        rotatingFragment?.updateSegments(segments)
         updateNavigationButtons()
+    }
+    
+    /** Update the saved segments list in the UI */
+    private fun updateSavedSegmentsList(savedSegments: List<SavedSegment>) {
+        this.savedSegments = savedSegments
+        val savedFragment = supportFragmentManager.findFragmentByTag("f1") as? SavedSegmentsFragment
+        savedFragment?.updateSavedSegments(savedSegments)
+        updateSavedNavigationButtons()
+    }
+    
+    /** Play a saved segment */
+    private fun playSavedSegment(savedSegment: SavedSegment) {
+        stopPlayback()
+        
+        try {
+            val file = savedSegment.file
+            if (!file.exists()) {
+                AppLog.e(TAG, "Saved segment file does not exist: ${savedSegment.filePath}")
+                return
+            }
+            
+            if (!requestAudioFocus()) {
+                AppLog.w(TAG, "Audio focus not granted; continuing cautiously")
+            }
+            
+            mediaPlayer = MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                setDataSource(savedSegment.filePath)
+                prepare()
+                start()
+            }
+            
+            currentSavedSegment = savedSegment
+            btnPlayPause.isEnabled = true
+            btnStop.isEnabled = true
+            btnSave.isEnabled = false // Already saved
+            btnDelete.isEnabled = true
+            seekBar.isEnabled = true
+            seekBar.max = getDuration()
+            tvTotalTime.text = formatMs(getDuration().toLong())
+            tvCurrentTime.text = formatMs(0)
+            startProgressUpdater()
+            updatePlayPauseButton()
+            
+            AppLog.d(TAG, "Started playing saved segment: ${savedSegment.filePath}")
+            
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Error playing saved segment", e)
+        }
+    }
+    
+    /** Update current saved segment information display */
+    private fun updateCurrentSavedSegmentInfo(savedSegment: SavedSegment) {
+        tvCurrentSegment.text = savedSegment.filename
+        currentSavedSegmentIndex = savedSegments.indexOf(savedSegment)
+        updateSavedNavigationButtons()
+    }
+    
+    /** Update saved navigation buttons state */
+    private fun updateSavedNavigationButtons() {
+        btnPrevious.isEnabled = currentSavedSegmentIndex > 0
+        btnNext.isEnabled = currentSavedSegmentIndex < savedSegments.size - 1
+        btnSave.isEnabled = false // Already saved
+        btnDelete.isEnabled = currentSavedSegment != null
+    }
+    
+    /** Show delete saved segment confirmation dialog */
+    private fun showDeleteSavedSegmentDialog(savedSegment: SavedSegment) {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Saved Recording")
+            .setMessage("Are you sure you want to delete this saved recording? This action cannot be undone.")
+            .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
+                deleteSavedSegment(savedSegment)
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+    
+    /** Delete a saved segment */
+    private fun deleteSavedSegment(savedSegment: SavedSegment) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val success = FileUtils.deleteSavedSegment(savedSegment.file)
+                
+                withContext(Dispatchers.Main) {
+                    if (success) {
+                        Toast.makeText(
+                            this@PlaybackActivity,
+                            "Saved recording deleted successfully",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        
+                        // If we deleted the currently playing saved segment, stop playback
+                        if (currentSavedSegment?.filePath == savedSegment.filePath) {
+                            stopPlayback()
+                        }
+                        
+                        // Refresh saved segments list
+                        loadSavedSegments()
+                    } else {
+                        Toast.makeText(
+                            this@PlaybackActivity,
+                            "Error deleting saved recording",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                AppLog.e(TAG, "Error deleting saved segment", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@PlaybackActivity,
+                        "Error deleting saved recording",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+    
+    /** Show delete all saved segments confirmation dialog */
+    private fun showDeleteAllSavedDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Delete All Saved Recordings")
+            .setMessage("Are you sure you want to delete all saved recordings? This action cannot be undone.")
+            .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
+                deleteAllSavedSegments()
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+    
+    /** Delete all saved segments */
+    private fun deleteAllSavedSegments() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                var successCount = 0
+                val totalCount = savedSegments.size
+                
+                for (savedSegment in savedSegments) {
+                    if (FileUtils.deleteSavedSegment(savedSegment.file)) {
+                        successCount++
+                    }
+                }
+                
+                withContext(Dispatchers.Main) {
+                    if (successCount == totalCount) {
+                        Toast.makeText(
+                            this@PlaybackActivity,
+                            "All saved recordings deleted successfully",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        
+                        // Stop playback since all saved segments are gone
+                        stopPlayback()
+                        
+                        // Refresh saved segments list
+                        loadSavedSegments()
+                    } else {
+                        Toast.makeText(
+                            this@PlaybackActivity,
+                            "Error deleting some saved recordings",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                AppLog.e(TAG, "Error deleting all saved segments", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@PlaybackActivity,
+                        "Error deleting saved recordings",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
     }
     
     /** Play a specific segment */
@@ -412,6 +704,7 @@ class PlaybackActivity : AppCompatActivity() {
             btnPlayPause.isEnabled = true
             btnStop.isEnabled = true
             btnSave.isEnabled = true
+            btnDelete.isEnabled = true
             seekBar.isEnabled = true
             seekBar.max = getDuration()
             tvTotalTime.text = formatMs(getDuration().toLong())
@@ -459,10 +752,12 @@ class PlaybackActivity : AppCompatActivity() {
         }
         mediaPlayer = null
         currentSegment = null
+        currentSavedSegment = null
         abandonAudioFocus()
         btnPlayPause.isEnabled = false
         btnStop.isEnabled = false
         btnSave.isEnabled = false
+        btnDelete.isEnabled = false
         seekBar.isEnabled = false
         updatePlayPauseButton()
         AppLog.d(TAG, "Playback stopped")

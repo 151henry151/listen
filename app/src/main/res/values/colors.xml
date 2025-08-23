@@ -16,4 +16,13 @@
     <color name="background_light">#FFF5F5F5</color>
     <color name="text_primary">#FF212121</color>
     <color name="text_secondary">#FF757575</color>
+    
+    <!-- Button colors -->
+    <color name="button_primary">#FF6200EE</color>
+    <color name="button_secondary">#FF03DAC5</color>
+    <color name="button_danger">#FFE53935</color>
+    <color name="button_success">#FF4CAF50</color>
+    <color name="button_disabled">#FFBDBDBD</color>
+    <color name="button_text_primary">#FFFFFFFF</color>
+    <color name="button_text_secondary">#FF000000</color>
 </resources> 

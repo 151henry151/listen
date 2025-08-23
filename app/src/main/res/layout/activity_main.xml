@@ -128,30 +128,26 @@
 
         <Button
             android:id="@+id/btn_start_stop"
+            style="@style/Widget.Listen.Button.Primary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/btn_start_recording"
-            android:textSize="16sp"
-            android:padding="12dp" />
+            android:text="@string/btn_start_recording" />
 
         <Button
             android:id="@+id/btn_playback"
+            style="@style/Widget.Listen.Button.Primary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/btn_open_playback"
-            android:textSize="16sp"
-            android:padding="12dp" />
+            android:layout_marginTop="16dp"
+            android:text="@string/btn_open_playback" />
 
         <Button
             android:id="@+id/btn_settings"
+            style="@style/Widget.Listen.Button.Secondary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/btn_settings"
-            android:textSize="16sp"
-            android:padding="12dp"
-            style="@style/Widget.Material3.Button.OutlinedButton" />
+            android:layout_marginTop="16dp"
+            android:text="@string/btn_settings" />
 
     </LinearLayout>
 

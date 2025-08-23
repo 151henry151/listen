@@ -14,4 +14,71 @@
         <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
     </style>
+    
+    <!-- Custom button styles -->
+    <style name="Widget.Listen.Button.Primary" parent="Widget.Material3.Button">
+        <item name="android:textColor">@color/button_text_primary</item>
+        <item name="backgroundTint">@color/button_primary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="cornerRadius">24dp</item>
+    </style>
+    
+    <style name="Widget.Listen.Button.Secondary" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textColor">@color/button_primary</item>
+        <item name="strokeColor">@color/button_primary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="cornerRadius">24dp</item>
+    </style>
+    
+    <style name="Widget.Listen.Button.Danger" parent="Widget.Material3.Button">
+        <item name="android:textColor">@color/button_text_primary</item>
+        <item name="backgroundTint">@color/button_danger</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="cornerRadius">24dp</item>
+    </style>
+    
+    <style name="Widget.Listen.Button.Success" parent="Widget.Material3.Button">
+        <item name="android:textColor">@color/button_text_primary</item>
+        <item name="backgroundTint">@color/button_success</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="cornerRadius">24dp</item>
+    </style>
+    
+    <style name="Widget.Listen.Button.Icon" parent="Widget.Material3.Button">
+        <item name="android:textColor">@color/button_text_primary</item>
+        <item name="backgroundTint">@color/button_primary</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:minWidth">48dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="cornerRadius">24dp</item>
+    </style>
+    
+    <style name="Widget.Listen.Button.IconLarge" parent="Widget.Material3.Button">
+        <item name="android:textColor">@color/button_text_primary</item>
+        <item name="backgroundTint">@color/button_primary</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:minWidth">64dp</item>
+        <item name="android:minHeight">64dp</item>
+        <item name="cornerRadius">32dp</item>
+    </style>
 </resources> 

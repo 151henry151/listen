@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.listen.app.data.ListenDatabase
 import com.listen.app.data.Segment
+import kotlinx.coroutines.flow.first
 import java.io.File
 
 /**
@@ -53,15 +54,11 @@ object SegmentManager {
         return try {
             val database = ListenDatabase.getDatabase(context)
             
-            // Get all segments using Flow
-            val segments = mutableListOf<Segment>()
-            database.segmentDao().getAllSegments().collect { segmentList ->
-                segments.clear()
-                segments.addAll(segmentList)
-            }
+            // Get all segments - use a one-time collection
+            val segments = database.segmentDao().getAllSegments().first()
             
             var successCount = 0
-            var totalCount = segments.size
+            val totalCount = segments.size
             
             // Delete each file
             for (segment in segments) {

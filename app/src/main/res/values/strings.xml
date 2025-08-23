@@ -35,8 +35,9 @@
     <string name="notification_channel_name">Listen Recording</string>
     <string name="notification_channel_description">Background audio recording service</string>
     
-    <!-- Playback Activity -->
-    <string name="title_playback">Audio Playback</string>
+    <!-- Playback -->
+    <string name="title_playback">Listen</string>
+    <string name="audio_playback">Audio Playback</string>
     <string name="no_segments">No audio segments available</string>
     <string name="segment_duration">Duration: %s</string>
     <string name="segment_time">Time: %s</string>
@@ -46,6 +47,11 @@
     <string name="btn_previous">Previous</string>
     <string name="btn_next">Next</string>
     <string name="btn_save">Save</string>
+    
+    <!-- Tabs -->
+    <string name="tab_rotating_segments">Rotating</string>
+    <string name="tab_saved_segments">Saved</string>
+    <string name="no_saved_segments">No saved segments available</string>
     
     <!-- Settings -->
     <string name="title_settings">Settings</string>

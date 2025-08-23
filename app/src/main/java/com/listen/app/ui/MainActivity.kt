@@ -113,10 +113,10 @@ class MainActivity : AppCompatActivity() {
             // Step 1: View binding
             try {
                 writeDebugLog("Starting view binding...")
-                binding = ActivityMainBinding.inflate(layoutInflater)
-                setContentView(binding.root)
+            binding = ActivityMainBinding.inflate(layoutInflater)
+            setContentView(binding.root)
                 writeDebugLog("View binding and content view set successfully")
-                Log.d(TAG, "View binding and content view set")
+            Log.d(TAG, "View binding and content view set")
             } catch (e: Exception) {
                 writeDebugLog("View binding failed: ${e.message}")
                 Log.e(TAG, "View binding failed", e)
@@ -126,9 +126,9 @@ class MainActivity : AppCompatActivity() {
             // Step 2: Initialize SettingsManager
             try {
                 writeDebugLog("Initializing SettingsManager...")
-                settings = SettingsManager(this)
+            settings = SettingsManager(this)
                 writeDebugLog("SettingsManager initialized successfully")
-                Log.d(TAG, "SettingsManager initialized")
+            Log.d(TAG, "SettingsManager initialized")
             } catch (e: Exception) {
                 writeDebugLog("SettingsManager initialization failed: ${e.message}")
                 Log.e(TAG, "SettingsManager initialization failed", e)
@@ -151,9 +151,9 @@ class MainActivity : AppCompatActivity() {
             // Step 4: Initialize StorageManager
             try {
                 writeDebugLog("Initializing StorageManager...")
-                storageManager = StorageManager(this)
+            storageManager = StorageManager(this)
                 writeDebugLog("StorageManager initialized successfully")
-                Log.d(TAG, "StorageManager initialized")
+            Log.d(TAG, "StorageManager initialized")
             } catch (e: Exception) {
                 writeDebugLog("StorageManager initialization failed: ${e.message}")
                 Log.e(TAG, "StorageManager initialization failed", e)
@@ -163,9 +163,9 @@ class MainActivity : AppCompatActivity() {
             // Step 5: Set up UI
             try {
                 writeDebugLog("Setting up UI...")
-                setupUI()
+            setupUI()
                 writeDebugLog("UI setup completed successfully")
-                Log.d(TAG, "UI setup completed")
+            Log.d(TAG, "UI setup completed")
             } catch (e: Exception) {
                 writeDebugLog("UI setup failed: ${e.message}")
                 Log.e(TAG, "UI setup failed", e)
@@ -175,9 +175,9 @@ class MainActivity : AppCompatActivity() {
             // Step 6: Check basic permissions
             try {
                 writeDebugLog("Checking basic permissions...")
-                checkBasicPermissions()
+            checkBasicPermissions()
                 writeDebugLog("Basic permissions check completed successfully")
-                Log.d(TAG, "Basic permissions check completed")
+            Log.d(TAG, "Basic permissions check completed")
             } catch (e: Exception) {
                 writeDebugLog("Basic permissions check failed: ${e.message}")
                 Log.e(TAG, "Basic permissions check failed", e)
@@ -326,7 +326,7 @@ class MainActivity : AppCompatActivity() {
             requestNotificationPermission()
         }
     }
-
+    
     /** Request notification permission for Android 13+ */
     private fun requestNotificationPermission() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
