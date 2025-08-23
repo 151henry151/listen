@@ -513,6 +513,9 @@ class MainActivity : AppCompatActivity() {
             promptBatteryOptimizationIfNeeded()
             ListenForegroundService.start(this)
             Toast.makeText(this, getString(R.string.msg_service_started), Toast.LENGTH_SHORT).show()
+            
+            // Set optimistic recording state since we just started the service
+            lastRecordingState = true
             updateUI()
             
         } else {
