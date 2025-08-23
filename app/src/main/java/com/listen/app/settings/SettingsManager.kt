@@ -25,7 +25,7 @@ class SettingsManager(context: Context) {
     
     /** Whether auto music mode is enabled */
     var autoMusicModeEnabled: Boolean
-        get() = prefs.getBoolean(KEY_AUTO_MUSIC_MODE, false)
+        get() = prefs.getBoolean(KEY_AUTO_MUSIC_MODE, true) // Changed default to true
         set(value) = prefs.edit { putBoolean(KEY_AUTO_MUSIC_MODE, value) }
     
     /** Retention period in minutes */
@@ -150,9 +150,9 @@ class SettingsManager(context: Context) {
         private const val KEY_USER_CONSENTED_TO_RECORDING = "user_consented_to_recording"
         
         // Default values
-        const val DEFAULT_SEGMENT_DURATION = 60 // 1 minute
-        const val DEFAULT_RETENTION_PERIOD = 10 // 10 minutes
-        const val DEFAULT_MAX_STORAGE = 100 // 100 MB
+        const val DEFAULT_SEGMENT_DURATION = 120 // 2 minutes (changed from 60)
+        const val DEFAULT_RETENTION_PERIOD = 720 // 12 hours (changed from 10 minutes)
+        const val DEFAULT_MAX_STORAGE = 10240 // 10 GB (changed from 100 MB)
         const val AUTO_MUSIC_TARGET_SECONDS = 300 // ~5 minutes
     }
 }

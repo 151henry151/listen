@@ -121,7 +121,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Max Storage (MB)" />
+            android:text="Max Storage (GB)" />
         <EditText
             android:id="@+id/et_max_storage"
             android:layout_width="match_parent"

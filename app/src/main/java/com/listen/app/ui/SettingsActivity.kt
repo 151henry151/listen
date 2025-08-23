@@ -37,7 +37,7 @@ class SettingsActivity : AppCompatActivity() {
 		// Pre-fill current values
 		etSegmentDuration.setText(settings.segmentDurationSeconds.toString())
 		etRetentionMinutes.setText(settings.retentionPeriodMinutes.toString())
-		etMaxStorage.setText(settings.maxStorageMB.toString())
+		etMaxStorage.setText((settings.maxStorageMB / 1024).toString()) // Convert MB to GB for display
 		swAutoStart.isChecked = settings.autoStartOnBoot
 		swPowerSaving.isChecked = settings.powerSavingModeEnabled
 		swAdaptive.isChecked = settings.adaptivePerformanceEnabled
@@ -60,7 +60,7 @@ class SettingsActivity : AppCompatActivity() {
 		btnSave.setOnClickListener {
 			settings.segmentDurationSeconds = etSegmentDuration.text.toString().toIntOrNull() ?: settings.segmentDurationSeconds
 			settings.retentionPeriodMinutes = etRetentionMinutes.text.toString().toIntOrNull() ?: settings.retentionPeriodMinutes
-			settings.maxStorageMB = etMaxStorage.text.toString().toIntOrNull() ?: settings.maxStorageMB
+			settings.maxStorageMB = (etMaxStorage.text.toString().toIntOrNull() ?: (settings.maxStorageMB / 1024)) * 1024 // Convert GB to MB
 			swAutoStart.isChecked.also { settings.autoStartOnBoot = it }
 			swPowerSaving.isChecked.also { settings.powerSavingModeEnabled = it }
 			swAdaptive.isChecked.also { settings.adaptivePerformanceEnabled = it }
