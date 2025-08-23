@@ -368,8 +368,11 @@ class PlaybackActivity : AppCompatActivity() {
                             Toast.LENGTH_LONG
                         ).show()
                         
-                        // Refresh saved segments list
-                        loadSavedSegments()
+                        // Refresh saved segments list with a small delay to ensure file system is updated
+                        lifecycleScope.launch {
+                            delay(500) // Small delay to ensure file system is updated
+                            loadSavedSegments()
+                        }
                     } else {
                         Toast.makeText(
                             this@PlaybackActivity,
@@ -509,13 +512,17 @@ class PlaybackActivity : AppCompatActivity() {
     private fun loadSavedSegments() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                AppLog.d(TAG, "Loading saved segments...")
                 val savedFiles = FileUtils.getSavedSegmentFiles()
+                AppLog.d(TAG, "Found ${savedFiles.size} saved segment files")
+                
                 val savedSegmentsList = savedFiles.map { file ->
                     SavedSegment(file)
                 }
                 
                 withContext(Dispatchers.Main) {
                     savedSegments = savedSegmentsList
+                    AppLog.d(TAG, "Updated saved segments list with ${savedSegmentsList.size} items")
                     updateSavedSegmentsList(savedSegments)
                 }
             } catch (e: Exception) {
@@ -544,14 +551,24 @@ class PlaybackActivity : AppCompatActivity() {
     /** Update the saved segments list in the UI */
     private fun updateSavedSegmentsList(savedSegments: List<SavedSegment>) {
         this.savedSegments = savedSegments
+        AppLog.d(TAG, "Updating saved segments list in UI with ${savedSegments.size} items")
+        
         // Find the saved segments fragment and update it
         val fragments = supportFragmentManager.fragments
+        var fragmentFound = false
         for (fragment in fragments) {
             if (fragment is SavedSegmentsFragment) {
                 fragment.updateSavedSegments(savedSegments)
+                fragmentFound = true
+                AppLog.d(TAG, "Updated SavedSegmentsFragment with ${savedSegments.size} items")
                 break
             }
         }
+        
+        if (!fragmentFound) {
+            AppLog.w(TAG, "SavedSegmentsFragment not found in fragments")
+        }
+        
         updateSavedNavigationButtons()
         
         // Ensure fragment listeners are set up

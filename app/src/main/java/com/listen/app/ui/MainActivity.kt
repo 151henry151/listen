@@ -500,18 +500,14 @@ class MainActivity : AppCompatActivity() {
         val seconds = (elapsedMs % 60000) / 1000
         val isServiceActuallyRunning = isServiceActuallyRunning()
         
-        // Show recording status based on service state, not just active recording
-        binding.tvRecordingStatus.text = if (isServiceActuallyRunning) {
-            if (isRecording) {
-                getString(R.string.label_recording) + ":  ${minutes}:${String.format("%02d", seconds)}"
-            } else {
-                getString(R.string.label_recording) + ": " + getString(R.string.status_active)
-            }
+        // Show recording status based on actual recording state, not just service state
+        binding.tvRecordingStatus.text = if (isRecording) {
+            getString(R.string.label_recording) + ":  ${minutes}:${String.format("%02d", seconds)}"
         } else {
             getString(R.string.label_recording) + ": " + getString(R.string.status_stopped)
         }
         
-        val recordingColorRes = if (isServiceActuallyRunning) R.color.recording_red else R.color.stopped_gray
+        val recordingColorRes = if (isRecording) R.color.recording_red else R.color.stopped_gray
         binding.tvRecordingStatus.setTextColor(ContextCompat.getColor(this, recordingColorRes))
         
         // Update service status to show it's actually running
