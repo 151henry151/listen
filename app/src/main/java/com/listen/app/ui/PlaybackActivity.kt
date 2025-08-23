@@ -409,10 +409,11 @@ class PlaybackActivity : AppCompatActivity() {
                             Toast.LENGTH_LONG
                         ).show()
                         
-                        // Refresh saved segments list with a small delay to ensure file system is updated
+                        // Refresh both segments lists with a small delay to ensure file system is updated
                         lifecycleScope.launch {
                             delay(500) // Small delay to ensure file system is updated
-                            loadSavedSegments()
+                            loadSegments() // Refresh rotating segments list
+                            loadSavedSegments() // Refresh saved segments list
                         }
                     } else {
                         Toast.makeText(
@@ -514,6 +515,9 @@ class PlaybackActivity : AppCompatActivity() {
                         
                         // Stop playback since all rotating segments are gone
                         stopPlayback()
+                        
+                        // Refresh the segments list to update the UI
+                        loadSegments()
                     } else {
                         Toast.makeText(
                             this@PlaybackActivity,
@@ -539,10 +543,10 @@ class PlaybackActivity : AppCompatActivity() {
     private fun loadSegments() {
         lifecycleScope.launch {
             try {
-                database.segmentDao().getAllSegments().collect { segments ->
-                    AppLog.d(TAG, "Loaded ${segments.size} segments")
-                    updateSegmentsList(segments)
-                }
+                // Only load rotating segments (not saved ones)
+                val rotatingSegments = database.segmentDao().getRotatingSegments()
+                AppLog.d(TAG, "Loaded ${rotatingSegments.size} rotating segments")
+                updateSegmentsList(rotatingSegments)
             } catch (e: Exception) {
                 AppLog.e(TAG, "Error loading segments", e)
             }
