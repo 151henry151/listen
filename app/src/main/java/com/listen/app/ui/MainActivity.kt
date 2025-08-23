@@ -453,18 +453,32 @@ class MainActivity : AppCompatActivity() {
                 
                 writeDebugLog("Storage info retrieved: stats=$storageStats, available=$availableStorage, segments=$segmentCount")
                 
-                // Simplified status display - just show Recording or Stopped
-                if (lastRecordingState) {
+                // Determine recording status: if service is enabled and running, assume it's recording
+                // unless we have explicit broadcast data saying otherwise
+                val isRecording = if (isServiceEnabled && isServiceActuallyRunning) {
+                    // Service is enabled and running, so it should be recording
+                    // Only show as not recording if we have recent broadcast data saying it's not recording
+                    val hasRecentBroadcast = lastStatusBroadcastTime > 0 && 
+                        (System.currentTimeMillis() - lastStatusBroadcastTime) < 5000 // 5 seconds
+                    if (hasRecentBroadcast) {
+                        lastRecordingState // Use broadcast data if recent
+                    } else {
+                        true // Assume recording if service is running and no recent broadcast
+                    }
+                } else {
+                    false // Service not running, definitely not recording
+                }
+                
+                // Update status display
+                if (isRecording) {
                     binding.tvServiceStatus.text = getString(R.string.status_recording)
                     binding.tvServiceStatus.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.status_running_green))
-                    // Hide the recording status text view since we're using service status for everything
-                    binding.tvRecordingStatus.visibility = android.view.View.GONE
                 } else {
                     binding.tvServiceStatus.text = getString(R.string.status_stopped)
                     binding.tvServiceStatus.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.recording_red))
-                    // Hide the recording status text view since we're using service status for everything
-                    binding.tvRecordingStatus.visibility = android.view.View.GONE
                 }
+                // Hide the recording status text view since we're using service status for everything
+                binding.tvRecordingStatus.visibility = android.view.View.GONE
                 
                 // Update button text based on settings (what user wants)
                 binding.btnStartStop.text = if (isServiceEnabled) {
