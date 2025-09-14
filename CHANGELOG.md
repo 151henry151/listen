@@ -5,6 +5,26 @@ All notable changes to the Listen app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5] - 2025-01-14
+
+### Fixed
+- **Complete Android 15+ Compliance**: Completely removed BOOT_COMPLETED receiver and permission to resolve Google Play Console restriction
+- **No Boot Receiver**: Disabled ListenBootReceiver entirely and removed RECEIVE_BOOT_COMPLETED permission
+
+### Changed
+- **Manual Recovery Only**: Boot recovery now only works when user manually launches the app after device restart
+- **No Automatic Boot Launch**: App no longer launches automatically on device boot
+- **User-Controlled**: All service startup is now completely user-initiated through manual app launches
+
+### Technical Changes
+- **Removed Boot Receiver**: Completely disabled ListenBootReceiver in AndroidManifest.xml
+- **Removed Boot Permission**: Commented out RECEIVE_BOOT_COMPLETED permission
+- **Manual Recovery Check**: Boot recovery prompt only appears when user manually launches app
+- **Flag Management**: Improved cleanup of wasRecordingOnShutdown flag when auto-start is disabled
+- **No System Triggers**: Service startup is never triggered by system events, only user actions
+
+---
+
 ## [1.1.4] - 2025-01-14
 
 ### Fixed
