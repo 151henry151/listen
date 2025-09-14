@@ -43,6 +43,12 @@ class ListenBootReceiver : BroadcastReceiver() {
                         return
                     }
                     
+                    // Check if user has given consent for recording
+                    if (!settings.hasUserConsentedToRecording) {
+                        AppLog.w(TAG, "Skipping auto-start: user consent not given")
+                        return
+                    }
+                    
                     AppLog.d(TAG, "Resuming recording after boot (was recording on shutdown)")
                     
                     // Delay restart to allow system to stabilize
@@ -63,6 +69,7 @@ class ListenBootReceiver : BroadcastReceiver() {
                     
                 } else {
                     AppLog.d(TAG, "Recording not resumed: wasRecording=${settings.wasRecordingOnShutdown}, autoStart=${settings.autoStartOnBoot}")
+                AppLog.d(TAG, "Additional debug info: isServiceEnabled=${settings.isServiceEnabled}, hasConsent=${settings.hasUserConsentedToRecording}")
                 }
             }
         }
@@ -70,6 +77,6 @@ class ListenBootReceiver : BroadcastReceiver() {
     
     companion object {
         private const val TAG = "ListenBootReceiver"
-        private const val BOOT_DELAY_MS = 30000L // 30 seconds delay
+        private const val BOOT_DELAY_MS = 10000L // 10 seconds delay (reduced from 30)
     }
 } 

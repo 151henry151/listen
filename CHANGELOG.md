@@ -5,6 +5,35 @@ All notable changes to the Listen app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-01-14
+
+### Fixed
+- **Intermittent Saved Recordings Display**: Fixed issue where saved recordings tab sometimes wouldn't show recordings on first access
+- **Playback Failures**: Resolved playback failures on some recorded tracks with improved error handling and file validation
+- **Recording During Playback**: Fixed coordination between recording and playback to prevent audio feedback loops
+- **Phone Call Recording**: Improved phone call handling to continue microphone recording during speakerphone calls
+- **Boot Startup**: Fixed automatic recording startup after device reboot for continuous operation
+
+### Improved
+- **Playback Reliability**: Enhanced MediaPlayer setup with robust file validation and resource cleanup
+- **Service Communication**: Improved coordination between PlaybackActivity and ListenForegroundService
+- **Boot Recovery**: Enhanced boot receiver logic with better permission and consent checking
+- **Error Handling**: Added comprehensive error handling throughout the playback system
+- **Audio Focus Management**: Improved audio focus handling during playback sessions
+
+### Technical Improvements
+- **Target SDK Update**: Updated to Android 15 (API 35) for Google Play Store compliance
+- **Boot Receiver Enhancement**: Added user consent verification and reduced boot delay
+- **Service Lifecycle**: Improved flag management for reliable boot recovery
+- **File Validation**: Added comprehensive file existence and readability checks
+- **Resource Management**: Enhanced MediaPlayer resource cleanup to prevent leaks
+
+### System Requirements
+- **Target Android Version**: Android 15 (API 35) - Updated for Google Play compliance
+- **Minimum Android Version**: Android 8.0 (API 26) - Unchanged
+
+---
+
 ## [1.0.0] - 2025-08-23
 
 ### Added

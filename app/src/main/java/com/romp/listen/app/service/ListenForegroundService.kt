@@ -71,6 +71,10 @@ class ListenForegroundService : Service() {
     private var currentCallNumber: String? = null
     private var currentSegmentIsPhoneCall: Boolean = false
     
+    // Playback coordination
+    private var wasRecordingBeforePlayback: Boolean = false
+    private var isPlaybackActive: Boolean = false
+    
     companion object {
         private const val TAG = "ListenForegroundService"
         private const val NOTIFICATION_ID = 1001
@@ -83,6 +87,8 @@ class ListenForegroundService : Service() {
         
         // Commands
         const val ACTION_UPDATE_SETTINGS = "com.romp.listen.app.ACTION_UPDATE_SETTINGS"
+        const val ACTION_PAUSE_RECORDING_FOR_PLAYBACK = "com.romp.listen.app.ACTION_PAUSE_RECORDING_FOR_PLAYBACK"
+        const val ACTION_RESUME_RECORDING_AFTER_PLAYBACK = "com.romp.listen.app.ACTION_RESUME_RECORDING_AFTER_PLAYBACK"
         
         // Auto music mode heuristics
         private const val AUTO_MUSIC_POLL_INTERVAL_MS = 100L
@@ -176,26 +182,44 @@ class ListenForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         AppLog.d(TAG, "Service started")
         
-        if (intent?.action == ACTION_UPDATE_SETTINGS) {
-            AppLog.d(TAG, "Applying updated settings to recorder")
-            updateAudioSettings()
-            applyAdaptiveBehavior()
-            return START_STICKY
+        when (intent?.action) {
+            ACTION_UPDATE_SETTINGS -> {
+                AppLog.d(TAG, "Applying updated settings to recorder")
+                updateAudioSettings()
+                applyAdaptiveBehavior()
+                return START_STICKY
+            }
+            ACTION_PAUSE_RECORDING_FOR_PLAYBACK -> {
+                AppLog.d(TAG, "Pausing recording for playback")
+                pauseRecordingForPlayback()
+                return START_STICKY
+            }
+            ACTION_RESUME_RECORDING_AFTER_PLAYBACK -> {
+                AppLog.d(TAG, "Resuming recording after playback")
+                resumeRecordingAfterPlayback()
+                return START_STICKY
+            }
         }
         
         if (!isServiceRunning) {
             startForegroundService()
             ensureWakeLock()
             applyAdaptiveBehavior()
+            
+            // Mark that service is running (for boot recovery) regardless of recording success
+            // This ensures we can resume on boot even if recording initially fails
+            settings.wasRecordingOnShutdown = true
+            settings.isServiceEnabled = true
+            
             val started = startRecording()
             if (started) {
-                // Mark that recording is active (for boot recovery)
-                settings.wasRecordingOnShutdown = true
                 startInServiceRotationScheduler()
                 startStatusBroadcasts()
                 performanceMonitor?.start(serviceScope)
+                AppLog.d(TAG, "Recording started successfully")
             } else {
                 updateNotification("Recording failed. Tap to retry.")
+                AppLog.w(TAG, "Recording failed to start, but service is running")
             }
             // Cancel any legacy scheduled work to avoid duplicates
             cancelScheduledSegmentRotationWork()
@@ -604,59 +628,57 @@ class ListenForegroundService : Service() {
         isCallActive = true
         currentCallDirection = direction
         currentCallNumber = number
-
-
         
-        // 1) Truncate current ambient segment at call start
-        try {
-            if (audioRecorder.isRecording()) {
-                audioRecorder.stopRecording()
-            }
-        } catch (e: Exception) {
-            AppLog.w(TAG, "Failed to stop ambient recording on call start", e)
-        }
-        
-        // 2) Disable periodic rotation; we want a single call segment
-        stopInServiceRotationScheduler()
-        
-        // 3) Start call recording segment (best-effort; capture may be limited on modern Android)
+        // Continue recording from microphone to capture speakerphone conversations
+        // The AudioRecorderService already uses MediaRecorder.AudioSource.MIC
+        // which will capture ambient audio including speakerphone conversations
         currentSegmentIsPhoneCall = true
-        val started = audioRecorder.startRecording()
-        if (started) {
-            updateNotification("Recording call… ${direction}${if (!currentCallNumber.isNullOrEmpty()) ": ${currentCallNumber}" else ""}")
-        } else {
-            updateNotification("Call recording not supported on this device")
-        }
+        
+        // Update notification to indicate we're recording during a call
+        updateNotification("Recording during call… ${direction}${if (!currentCallNumber.isNullOrEmpty()) ": ${currentCallNumber}" else ""}")
+        
+        AppLog.d(TAG, "Continuing microphone recording during call for speakerphone capture")
     }
 
     private fun onCallEnded() {
         AppLog.d(TAG, "Call ended")
-        // Finalize the call segment
-        try {
-            if (audioRecorder.isRecording()) {
-                audioRecorder.stopRecording()
-            }
-        } catch (e: Exception) {
-            AppLog.w(TAG, "Failed to stop call recording", e)
-        }
         
-        // Reset call flags
+        // Reset call flags - recording continues normally
         isCallActive = false
         currentSegmentIsPhoneCall = false
         val lastDirection = currentCallDirection
-        val lastNumber = currentCallNumber
         currentCallDirection = null
         currentCallNumber = null
         
-        // 4) Resume ambient recording and periodic rotation
-        val started = startRecording()
-        if (started) {
-            startInServiceRotationScheduler()
-            updateNotification("Recording… resumed after call${if (!lastDirection.isNullOrEmpty()) " ($lastDirection)" else ""}")
+        // Recording continues from microphone as normal
+        // The current segment will continue until the next rotation
+        updateNotification("Recording… ${if (!lastDirection.isNullOrEmpty()) "(continued after $lastDirection call)" else ""}")
+        
+        AppLog.d(TAG, "Call ended, microphone recording continues normally")
+    }
+    
+    /** Pause recording for playback to prevent audio feedback loops */
+    private fun pauseRecordingForPlayback() {
+        if (audioRecorder.isRecording()) {
+            wasRecordingBeforePlayback = true
+            isPlaybackActive = true
+            stopRecording()
+            AppLog.d(TAG, "Recording paused for playback")
         } else {
-            updateNotification("Recording failed to resume after call")
+            AppLog.d(TAG, "Recording was not active, no need to pause for playback")
         }
     }
-
-
+    
+    /** Resume recording after playback ends */
+    private fun resumeRecordingAfterPlayback() {
+        if (wasRecordingBeforePlayback && isPlaybackActive) {
+            wasRecordingBeforePlayback = false
+            isPlaybackActive = false
+            // Start a new recording segment
+            startRecording()
+            AppLog.d(TAG, "Recording resumed after playback")
+        } else {
+            AppLog.d(TAG, "No need to resume recording after playback")
+        }
+    }
 } 

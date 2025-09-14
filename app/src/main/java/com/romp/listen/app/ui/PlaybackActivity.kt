@@ -39,6 +39,7 @@ import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import com.romp.listen.app.ui.fragments.RotatingSegmentsFragment
 import com.romp.listen.app.ui.fragments.SavedSegmentsFragment
+import com.romp.listen.app.service.ListenForegroundService
 
 /**
  * Activity for playing back recorded audio segments
@@ -236,6 +237,12 @@ class PlaybackActivity : AppCompatActivity() {
                 super.onPageSelected(position)
                 setupFragmentListenersForCurrentTab()
                 updateNavigationButtons() // Update button visibility when tab changes
+                
+                // Refresh saved segments when saved segments tab is accessed
+                if (position == 1) {
+                    AppLog.d(TAG, "Saved segments tab selected, refreshing saved segments")
+                    loadSavedSegments()
+                }
             }
         })
     }
@@ -610,7 +617,11 @@ class PlaybackActivity : AppCompatActivity() {
         }
         
         if (!fragmentFound) {
-            AppLog.w(TAG, "SavedSegmentsFragment not found in fragments")
+            AppLog.w(TAG, "SavedSegmentsFragment not found in fragments, will retry when fragment is available")
+            // If fragment not found, schedule a retry after a short delay
+            viewPager.postDelayed({
+                updateSavedSegmentsList(savedSegments)
+            }, 100)
         }
         
         updateSavedNavigationButtons()
@@ -624,10 +635,26 @@ class PlaybackActivity : AppCompatActivity() {
         AppLog.d(TAG, "playSavedSegment called with segment: ${savedSegment.filePath}")
         stopPlayback()
         
+        // Pause recording to prevent audio feedback loops
+        pauseRecordingForPlayback()
+        
         try {
             val file = savedSegment.file
             if (!file.exists()) {
                 AppLog.e(TAG, "Saved segment file does not exist: ${savedSegment.filePath}")
+                showPlaybackError("File not found")
+                return
+            }
+            
+            if (file.length() == 0L) {
+                AppLog.e(TAG, "Saved segment file is empty: ${savedSegment.filePath}")
+                showPlaybackError("File is empty")
+                return
+            }
+            
+            if (!file.canRead()) {
+                AppLog.e(TAG, "Cannot read saved segment file: ${savedSegment.filePath}")
+                showPlaybackError("Cannot read file")
                 return
             }
             
@@ -636,6 +663,10 @@ class PlaybackActivity : AppCompatActivity() {
             if (!requestAudioFocus()) {
                 AppLog.w(TAG, "Audio focus not granted; continuing cautiously")
             }
+            
+            // Ensure any previous MediaPlayer is cleaned up
+            mediaPlayer?.release()
+            mediaPlayer = null
             
             mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(
@@ -647,32 +678,44 @@ class PlaybackActivity : AppCompatActivity() {
                 setDataSource(savedSegment.filePath)
                 setOnPreparedListener { player ->
                     try {
-                        player.start()
-                        currentSavedSegment = savedSegment
-                        btnPlayPause.isEnabled = true
-                        btnStop.isEnabled = true
-                        btnSave.isEnabled = false // Already saved
-                        btnDelete.isEnabled = true
-                        seekBar.isEnabled = true
-                        seekBar.max = player.duration
-                        tvTotalTime.text = formatMs(player.duration.toLong())
-                        tvCurrentTime.text = formatMs(0)
-                        startProgressUpdater()
-                        updatePlayPauseButton()
-                        AppLog.d(TAG, "Started playing saved segment: ${savedSegment.filePath}")
+                        if (player == mediaPlayer) { // Ensure this is still the current player
+                            player.start()
+                            currentSavedSegment = savedSegment
+                            btnPlayPause.isEnabled = true
+                            btnStop.isEnabled = true
+                            btnSave.isEnabled = false // Already saved
+                            btnDelete.isEnabled = true
+                            seekBar.isEnabled = true
+                            seekBar.max = player.duration
+                            tvTotalTime.text = formatMs(player.duration.toLong())
+                            tvCurrentTime.text = formatMs(0)
+                            startProgressUpdater()
+                            updatePlayPauseButton()
+                            AppLog.d(TAG, "Started playing saved segment: ${savedSegment.filePath}")
+                        }
                     } catch (e: Exception) {
                         AppLog.e(TAG, "Error starting playback after preparation", e)
+                        showPlaybackError("Failed to start playback")
+                        stopPlayback()
                     }
                 }
                 setOnErrorListener { player, what, extra ->
                     AppLog.e(TAG, "MediaPlayer error: what=$what, extra=$extra")
+                    showPlaybackError("Playback error: $what")
+                    stopPlayback()
                     true
+                }
+                setOnCompletionListener { player ->
+                    AppLog.d(TAG, "Playback completed")
+                    stopPlayback()
                 }
                 prepareAsync()
             }
             
         } catch (e: Exception) {
             AppLog.e(TAG, "Error playing saved segment", e)
+            showPlaybackError("Failed to prepare playback")
+            stopPlayback()
         }
     }
     
@@ -812,10 +855,26 @@ class PlaybackActivity : AppCompatActivity() {
         AppLog.d(TAG, "playSegment called with segment: ${segment.filePath}")
         stopPlayback()
         
+        // Pause recording to prevent audio feedback loops
+        pauseRecordingForPlayback()
+        
         try {
             val file = File(segment.filePath)
             if (!file.exists()) {
                 AppLog.e(TAG, "Segment file does not exist: ${segment.filePath}")
+                showPlaybackError("File not found")
+                return
+            }
+            
+            if (file.length() == 0L) {
+                AppLog.e(TAG, "Segment file is empty: ${segment.filePath}")
+                showPlaybackError("File is empty")
+                return
+            }
+            
+            if (!file.canRead()) {
+                AppLog.e(TAG, "Cannot read segment file: ${segment.filePath}")
+                showPlaybackError("Cannot read file")
                 return
             }
             
@@ -824,6 +883,10 @@ class PlaybackActivity : AppCompatActivity() {
             if (!requestAudioFocus()) {
                 AppLog.w(TAG, "Audio focus not granted; continuing cautiously")
             }
+            
+            // Ensure any previous MediaPlayer is cleaned up
+            mediaPlayer?.release()
+            mediaPlayer = null
             
             mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(
@@ -835,32 +898,44 @@ class PlaybackActivity : AppCompatActivity() {
                 setDataSource(segment.filePath)
                 setOnPreparedListener { player ->
                     try {
-                        player.start()
-                        currentSegment = segment
-                        btnPlayPause.isEnabled = true
-                        btnStop.isEnabled = true
-                        btnSave.isEnabled = true
-                        btnDelete.isEnabled = true
-                        seekBar.isEnabled = true
-                        seekBar.max = player.duration
-                        tvTotalTime.text = formatMs(player.duration.toLong())
-                        tvCurrentTime.text = formatMs(0)
-                        startProgressUpdater()
-                        updatePlayPauseButton()
-                        AppLog.d(TAG, "Started playing segment: ${segment.filePath}")
+                        if (player == mediaPlayer) { // Ensure this is still the current player
+                            player.start()
+                            currentSegment = segment
+                            btnPlayPause.isEnabled = true
+                            btnStop.isEnabled = true
+                            btnSave.isEnabled = true
+                            btnDelete.isEnabled = true
+                            seekBar.isEnabled = true
+                            seekBar.max = player.duration
+                            tvTotalTime.text = formatMs(player.duration.toLong())
+                            tvCurrentTime.text = formatMs(0)
+                            startProgressUpdater()
+                            updatePlayPauseButton()
+                            AppLog.d(TAG, "Started playing segment: ${segment.filePath}")
+                        }
                     } catch (e: Exception) {
                         AppLog.e(TAG, "Error starting playback after preparation", e)
+                        showPlaybackError("Failed to start playback")
+                        stopPlayback()
                     }
                 }
                 setOnErrorListener { player, what, extra ->
                     AppLog.e(TAG, "MediaPlayer error: what=$what, extra=$extra")
+                    showPlaybackError("Playback error: $what")
+                    stopPlayback()
                     true
+                }
+                setOnCompletionListener { player ->
+                    AppLog.d(TAG, "Playback completed")
+                    stopPlayback()
                 }
                 prepareAsync()
             }
             
         } catch (e: Exception) {
             AppLog.e(TAG, "Error playing segment", e)
+            showPlaybackError("Failed to prepare playback")
+            stopPlayback()
         }
     }
     
@@ -905,6 +980,10 @@ class PlaybackActivity : AppCompatActivity() {
         btnDelete.isEnabled = false
         seekBar.isEnabled = false
         updatePlayPauseButton()
+        
+        // Resume recording after playback stops
+        resumeRecordingAfterPlayback()
+        
         AppLog.d(TAG, "Playback stopped")
     }
     
@@ -1003,6 +1082,39 @@ class PlaybackActivity : AppCompatActivity() {
         } else {
             AppLog.w(TAG, "Saved segment file not found: ${savedSegment.filePath}")
             Toast.makeText(this, "Saved segment file not found for sharing.", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /** Show playback error message to user */
+    private fun showPlaybackError(message: String) {
+        runOnUiThread {
+            Toast.makeText(this, "Playback error: $message", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /** Pause recording for playback to prevent audio feedback loops */
+    private fun pauseRecordingForPlayback() {
+        try {
+            val serviceIntent = Intent(this, ListenForegroundService::class.java).apply {
+                action = ListenForegroundService.ACTION_PAUSE_RECORDING_FOR_PLAYBACK
+            }
+            startService(serviceIntent)
+            AppLog.d(TAG, "Sent pause recording command to service")
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Error sending pause recording command", e)
+        }
+    }
+    
+    /** Resume recording after playback ends */
+    private fun resumeRecordingAfterPlayback() {
+        try {
+            val serviceIntent = Intent(this, ListenForegroundService::class.java).apply {
+                action = ListenForegroundService.ACTION_RESUME_RECORDING_AFTER_PLAYBACK
+            }
+            startService(serviceIntent)
+            AppLog.d(TAG, "Sent resume recording command to service")
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Error sending resume recording command", e)
         }
     }
     
