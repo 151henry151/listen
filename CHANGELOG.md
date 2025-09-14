@@ -5,6 +5,24 @@ All notable changes to the Listen app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2025-01-14
+
+### Fixed
+- **Android 15+ Compliance**: Completely resolved BOOT_COMPLETED + restricted foreground service issue by requiring user interaction
+- **User Prompt on Boot**: Added user prompt dialog asking if they want to resume recording after device boot instead of automatic startup
+
+### Changed
+- **Boot Startup Behavior**: Changed from automatic service startup to user-confirmed startup via dialog prompt
+- **Android 15+ Compatibility**: App now fully complies with Android 15+ restrictions on foreground service startup from broadcast receivers
+
+### Technical Changes
+- **User Interaction Required**: Boot receiver now launches MainActivity which shows a dialog asking user permission to resume recording
+- **Dialog Implementation**: Added `showBootStartupPrompt()` function with clear user choices
+- **Service Start Only on User Consent**: Service only starts when user explicitly chooses "Yes, Resume" in the dialog
+- **Non-Cancelable Dialog**: User must make a choice - no automatic dismissal
+
+---
+
 ## [1.1.1] - 2025-01-14
 
 ### Fixed

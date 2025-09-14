@@ -171,12 +171,11 @@ class MainActivity : AppCompatActivity() {
             try {
                 writeDebugLog("Checking for boot auto-start...")
                 if (intent.getBooleanExtra("AUTO_START_AFTER_BOOT", false)) {
-                    writeDebugLog("Boot auto-start detected, starting service...")
-                    Log.d(TAG, "Boot auto-start detected, starting service")
-                    // Start the service directly since we're in an Activity context
-                    ListenForegroundService.start(this)
-                    writeDebugLog("Service started successfully after boot")
-                    Log.d(TAG, "Service started successfully after boot")
+                    writeDebugLog("Boot auto-start detected, showing user prompt...")
+                    Log.d(TAG, "Boot auto-start detected, showing user prompt")
+                    // Show user prompt instead of automatically starting service
+                    // This is required for Android 15+ compliance
+                    showBootStartupPrompt()
                 }
             } catch (e: Exception) {
                 writeDebugLog("Boot auto-start failed: ${e.message}")
@@ -647,6 +646,32 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, getString(R.string.msg_storage_full), Toast.LENGTH_SHORT).show()
             }
         } catch (_: Exception) {}
+    }
+    
+    /** Show prompt asking user if they want to resume recording after device boot */
+    private fun showBootStartupPrompt() {
+        try {
+            AlertDialog.Builder(this)
+                .setTitle("Resume Recording?")
+                .setMessage("Listen was recording before your device restarted. Would you like to resume background recording now?")
+                .setPositiveButton("Yes, Resume") { _, _ ->
+                    AppLog.d(TAG, "User chose to resume recording after boot")
+                    writeDebugLog("User chose to resume recording after boot")
+                    // Now it's safe to start the service since user explicitly requested it
+                    ListenForegroundService.start(this)
+                    Toast.makeText(this, "Recording resumed", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("Not Now") { _, _ ->
+                    AppLog.d(TAG, "User chose not to resume recording after boot")
+                    writeDebugLog("User chose not to resume recording after boot")
+                    Toast.makeText(this, "Recording not started. You can start it manually anytime.", Toast.LENGTH_LONG).show()
+                }
+                .setCancelable(false) // User must make a choice
+                .show()
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Error showing boot startup prompt", e)
+            writeDebugLog("Error showing boot startup prompt: ${e.message}")
+        }
     }
     
     companion object {
