@@ -167,19 +167,13 @@ class MainActivity : AppCompatActivity() {
                 throw e
             }
             
-            // Step 5.5: Check for boot auto-start
+            // Step 5.5: Check for boot recovery (when app is manually launched after boot)
             try {
-                writeDebugLog("Checking for boot auto-start...")
-                if (intent.getBooleanExtra("AUTO_START_AFTER_BOOT", false)) {
-                    writeDebugLog("Boot auto-start detected, showing user prompt...")
-                    Log.d(TAG, "Boot auto-start detected, showing user prompt")
-                    // Show user prompt instead of automatically starting service
-                    // This is required for Android 15+ compliance
-                    showBootStartupPrompt()
-                }
+                writeDebugLog("Checking for boot recovery...")
+                checkBootRecovery()
             } catch (e: Exception) {
-                writeDebugLog("Boot auto-start failed: ${e.message}")
-                Log.e(TAG, "Boot auto-start failed", e)
+                writeDebugLog("Boot recovery check failed: ${e.message}")
+                Log.e(TAG, "Boot recovery check failed", e)
                 // Don't throw - this is not critical for normal app startup
             }
             
@@ -648,8 +642,35 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {}
     }
     
+    /** Check if we need to prompt user to resume recording after boot */
+    private fun checkBootRecovery() {
+        try {
+            // Check if we were recording before shutdown and auto-start is enabled
+            if (settings.wasRecordingOnShutdown && settings.autoStartOnBoot) {
+                // Check if microphone permission is still granted
+                val micGranted = ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED
+                
+                if (micGranted && settings.hasUserConsentedToRecording) {
+                    writeDebugLog("Boot recovery needed - showing prompt")
+                    Log.d(TAG, "Boot recovery needed - showing prompt")
+                    showBootRecoveryPrompt()
+                } else {
+                    writeDebugLog("Boot recovery skipped - permissions or consent missing")
+                    Log.d(TAG, "Boot recovery skipped - permissions or consent missing")
+                    // Clear the flag since we can't resume
+                    settings.wasRecordingOnShutdown = false
+                }
+            }
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Error checking boot recovery", e)
+            writeDebugLog("Error checking boot recovery: ${e.message}")
+        }
+    }
+    
     /** Show prompt asking user if they want to resume recording after device boot */
-    private fun showBootStartupPrompt() {
+    private fun showBootRecoveryPrompt() {
         try {
             AlertDialog.Builder(this)
                 .setTitle("Resume Recording?")
@@ -657,20 +678,29 @@ class MainActivity : AppCompatActivity() {
                 .setPositiveButton("Yes, Resume") { _, _ ->
                     AppLog.d(TAG, "User chose to resume recording after boot")
                     writeDebugLog("User chose to resume recording after boot")
-                    // Now it's safe to start the service since user explicitly requested it
+                    // Clear the flag since we're handling it now
+                    settings.wasRecordingOnShutdown = false
+                    // Start the service since user explicitly requested it
                     ListenForegroundService.start(this)
                     Toast.makeText(this, "Recording resumed", Toast.LENGTH_SHORT).show()
                 }
                 .setNegativeButton("Not Now") { _, _ ->
                     AppLog.d(TAG, "User chose not to resume recording after boot")
                     writeDebugLog("User chose not to resume recording after boot")
+                    // Clear the flag since user declined
+                    settings.wasRecordingOnShutdown = false
                     Toast.makeText(this, "Recording not started. You can start it manually anytime.", Toast.LENGTH_LONG).show()
                 }
-                .setCancelable(false) // User must make a choice
+                .setCancelable(true) // User can dismiss without choosing
+                .setOnCancelListener {
+                    // If user dismisses dialog, clear the flag to avoid repeated prompts
+                    settings.wasRecordingOnShutdown = false
+                    AppLog.d(TAG, "Boot recovery prompt dismissed by user")
+                }
                 .show()
         } catch (e: Exception) {
-            AppLog.e(TAG, "Error showing boot startup prompt", e)
-            writeDebugLog("Error showing boot startup prompt: ${e.message}")
+            AppLog.e(TAG, "Error showing boot recovery prompt", e)
+            writeDebugLog("Error showing boot recovery prompt: ${e.message}")
         }
     }
     
