@@ -5,6 +5,26 @@ All notable changes to the Listen app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.4] - 2025-01-14
+
+### Fixed
+- **Android 15+ Compliance with Boot Launch**: Restored BOOT_COMPLETED receiver to launch app, but service only starts after user consent
+- **Proper Boot Behavior**: App now launches automatically on boot, then prompts user before starting recording service
+
+### Changed
+- **Boot Receiver Restored**: Re-enabled ListenBootReceiver to launch MainActivity on device boot
+- **User Consent Required**: Service startup now requires explicit user interaction via dialog prompt
+- **Best of Both Worlds**: App launches on boot (user convenience) but service only starts with user consent (Android 15+ compliance)
+
+### Technical Changes
+- **Restored Boot Receiver**: Re-enabled BOOT_COMPLETED receiver in AndroidManifest.xml
+- **Launch App Only**: Boot receiver launches MainActivity with AUTO_START_AFTER_BOOT flag
+- **User Prompt on Boot**: MainActivity shows consent dialog when launched from boot receiver
+- **Service User-Initiated**: Service startup is triggered only when user clicks "Yes, Resume" in dialog
+- **Dual Recovery Methods**: Both automatic boot launch and manual app launch recovery
+
+---
+
 ## [1.1.3] - 2025-01-14
 
 ### Fixed
