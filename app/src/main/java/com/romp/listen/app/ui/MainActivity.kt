@@ -167,6 +167,23 @@ class MainActivity : AppCompatActivity() {
                 throw e
             }
             
+            // Step 5.5: Check for boot auto-start
+            try {
+                writeDebugLog("Checking for boot auto-start...")
+                if (intent.getBooleanExtra("AUTO_START_AFTER_BOOT", false)) {
+                    writeDebugLog("Boot auto-start detected, starting service...")
+                    Log.d(TAG, "Boot auto-start detected, starting service")
+                    // Start the service directly since we're in an Activity context
+                    ListenForegroundService.start(this)
+                    writeDebugLog("Service started successfully after boot")
+                    Log.d(TAG, "Service started successfully after boot")
+                }
+            } catch (e: Exception) {
+                writeDebugLog("Boot auto-start failed: ${e.message}")
+                Log.e(TAG, "Boot auto-start failed", e)
+                // Don't throw - this is not critical for normal app startup
+            }
+            
             // Step 6: Check basic permissions
             try {
                 writeDebugLog("Checking basic permissions...")

@@ -5,6 +5,19 @@ All notable changes to the Listen app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-01-14
+
+### Fixed
+- **Android 15+ Boot Receiver Issue**: Fixed critical crash issue where BOOT_COMPLETED receiver was directly starting restricted foreground service types, which is not allowed on Android 15+
+- **Boot Startup Compatibility**: Modified boot receiver to launch MainActivity instead of directly starting the foreground service, ensuring compatibility with Android 15+ restrictions
+
+### Technical Changes
+- **Boot Receiver Refactor**: Changed `ListenBootReceiver` to launch `MainActivity` with `AUTO_START_AFTER_BOOT` flag instead of directly calling `ListenForegroundService.start()`
+- **MainActivity Enhancement**: Added boot auto-start detection in `MainActivity.onCreate()` to start the service when launched from boot receiver
+- **Android 15+ Compliance**: Ensures the app won't crash on Android 15+ devices due to restricted foreground service startup from broadcast receivers
+
+---
+
 ## [1.1.0] - 2025-01-14
 
 ### Fixed

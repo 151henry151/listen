@@ -6,7 +6,7 @@ import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.romp.listen.app.service.ListenForegroundService
+import com.romp.listen.app.ui.MainActivity
 import com.romp.listen.app.settings.SettingsManager
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
@@ -56,12 +56,21 @@ class ListenBootReceiver : BroadcastReceiver() {
                         try {
                             // Re-enable the service flag since we're resuming
                             settings.isServiceEnabled = true
-                            ListenForegroundService.start(context)
-                            // Clear the flag now that we've resumed
+                            
+                            // For Android 15+, we cannot start restricted foreground services
+                            // directly from BOOT_COMPLETED receiver. Instead, launch MainActivity
+                            // which will then start the service properly.
+                            val mainIntent = Intent(context, MainActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                putExtra("AUTO_START_AFTER_BOOT", true)
+                            }
+                            context.startActivity(mainIntent)
+                            
+                            // Clear the flag now that we've initiated the restart
                             settings.wasRecordingOnShutdown = false
-                            AppLog.d(TAG, "Recording resumed successfully after boot")
+                            AppLog.d(TAG, "Recording restart initiated via MainActivity after boot")
                         } catch (e: Exception) {
-                            AppLog.e(TAG, "Failed to resume recording after boot", e)
+                            AppLog.e(TAG, "Failed to initiate recording restart after boot", e)
                             // Clear the flag even on failure to avoid repeated attempts
                             settings.wasRecordingOnShutdown = false
                         }
