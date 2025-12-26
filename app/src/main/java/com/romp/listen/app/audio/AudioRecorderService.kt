@@ -2,6 +2,7 @@ package com.romp.listen.app.audio
 
 import android.content.Context
 import android.media.MediaRecorder
+import android.os.Build
 import android.util.Log
 import com.romp.listen.app.storage.StorageManager
 import java.io.File
@@ -19,6 +20,8 @@ class AudioRecorderService(
     private var currentSegmentFile: File? = null
     private var segmentStartTime: Long = 0
     private var isRecording = false
+    private var lastRecorderStateCheck: Long = 0
+    private val STATE_CHECK_INTERVAL_MS = 5000L // Check every 5 seconds
     
     /** Current audio settings */
     private var audioBitrate: Int = 32000 // 32 kbps
@@ -27,6 +30,9 @@ class AudioRecorderService(
     
     /** Callback for when a segment is completed */
     var onSegmentCompleted: ((File, Long, Long) -> Unit)? = null
+    
+    /** Callback for when recording error occurs (for recovery) */
+    var onRecordingError: ((Exception?) -> Unit)? = null
     
     /** Start recording with current settings */
     fun startRecording(): Boolean {
@@ -48,6 +54,7 @@ class AudioRecorderService(
                 
                 val segmentFile = storageManager.createSegmentFile(System.currentTimeMillis())
                 segmentStartTime = System.currentTimeMillis()
+                lastRecorderStateCheck = System.currentTimeMillis()
                 
                 mediaRecorder = MediaRecorder().apply {
                     // Use microphone directly for ambient audio recording
@@ -58,6 +65,23 @@ class AudioRecorderService(
                     setAudioChannels(audioChannels)
                     setAudioEncodingBitRate(audioBitrate)
                     setOutputFile(segmentFile.absolutePath)
+                    
+                    // Add error listener for API 29+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        setOnErrorListener { _, what, extra ->
+                            AppLog.e(TAG, "MediaRecorder error: what=$what, extra=$extra")
+                            val error = Exception("MediaRecorder error: what=$what, extra=$extra")
+                            handleRecordingError(error)
+                        }
+                        setOnInfoListener { _, what, extra ->
+                            AppLog.w(TAG, "MediaRecorder info: what=$what, extra=$extra")
+                            // Some info codes indicate issues
+                            if (what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED ||
+                                what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED) {
+                                // These are expected, but we should rotate
+                            }
+                        }
+                    }
                     
                     prepare()
                     start()
@@ -179,6 +203,51 @@ class AudioRecorderService(
     
     /** Get current segment file */
     fun getCurrentSegmentFile(): File? = currentSegmentFile
+    
+    /** Check if recording is still healthy (for periodic health checks) */
+    fun checkRecordingHealth(): Boolean {
+        if (!isRecording || mediaRecorder == null) {
+            return false
+        }
+        
+        val now = System.currentTimeMillis()
+        // Only check periodically to avoid overhead
+        if (now - lastRecorderStateCheck < STATE_CHECK_INTERVAL_MS) {
+            return true
+        }
+        lastRecorderStateCheck = now
+        
+        return try {
+            // Try to get max amplitude - if this throws, recorder might be in bad state
+            val amplitude = mediaRecorder?.maxAmplitude
+            // If we can read amplitude, recorder is likely still working
+            amplitude != null
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Health check detected recording issue: ${e.message}")
+            handleRecordingError(e)
+            false
+        }
+    }
+    
+    /** Handle recording error and notify callback */
+    private fun handleRecordingError(error: Exception?) {
+        if (!isRecording) {
+            return // Already stopped
+        }
+        
+        AppLog.e(TAG, "Recording error detected, stopping current recording", error)
+        // Save current segment if possible
+        try {
+            val completedFile = stopRecording()
+            AppLog.d(TAG, "Saved segment after error: ${completedFile?.absolutePath}")
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Error stopping recording after error", e)
+            cleanup()
+        }
+        
+        // Notify error handler for recovery
+        onRecordingError?.invoke(error)
+    }
     
     /** Clean up resources */
     fun cleanup() {

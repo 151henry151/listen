@@ -35,6 +35,10 @@ import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import android.database.Cursor
+import android.media.AudioManager
+import android.media.AudioFocusRequest
+import android.os.Handler
+import android.os.Looper
 
 /**
  * Main foreground service that orchestrates background audio recording
@@ -74,6 +78,19 @@ class ListenForegroundService : Service() {
     // Playback coordination
     private var wasRecordingBeforePlayback: Boolean = false
     private var isPlaybackActive: Boolean = false
+    
+    // Audio focus monitoring
+    private var audioManager: AudioManager? = null
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private var audioFocusChangeListener: AudioManager.OnAudioFocusChangeListener? = null
+    private var audioFocusGained = false
+    
+    // Recording recovery
+    private var recoveryHandler: Handler? = null
+    private var recoveryRunnable: Runnable? = null
+    private var healthCheckRunnable: Runnable? = null
+    private val RECOVERY_DELAY_MS = 1000L // Wait 1 second before recovery attempt
+    private val HEALTH_CHECK_INTERVAL_MS = 10000L // Check every 10 seconds
     
     companion object {
         private const val TAG = "ListenForegroundService"
@@ -153,7 +170,7 @@ class ListenForegroundService : Service() {
             AppLog.d(TAG, "Initializing PerformanceMonitor")
             performanceMonitor = PerformanceMonitor(this)
         
-        // Set up audio recorder callback
+        // Set up audio recorder callbacks
         audioRecorder.onSegmentCompleted = { file, startTime, duration ->
             // Pass call metadata if this segment corresponds to a phone call
             val isCall = currentSegmentIsPhoneCall
@@ -165,6 +182,18 @@ class ListenForegroundService : Service() {
             // Update notification content subtly to show recent rotation
             updateNotification("Recording... (rotated)")
         }
+        
+        // Set up error callback for automatic recovery
+        audioRecorder.onRecordingError = { error ->
+            AppLog.e(TAG, "Audio recorder error detected, attempting recovery", error)
+            scheduleRecordingRecovery()
+        }
+        
+        // Initialize recovery handler
+        recoveryHandler = Handler(Looper.getMainLooper())
+        
+        // Initialize audio focus monitoring
+        initAudioFocusMonitoring()
         
         // Create notification channel
         createNotificationChannel()
@@ -213,8 +242,11 @@ class ListenForegroundService : Service() {
             
             val started = startRecording()
             if (started) {
+                // Request audio focus
+                requestAudioFocus()
                 startInServiceRotationScheduler()
                 startStatusBroadcasts()
+                startHealthCheck()
                 performanceMonitor?.start(serviceScope)
                 AppLog.d(TAG, "Recording started successfully")
             } else {
@@ -249,13 +281,17 @@ class ListenForegroundService : Service() {
         
         stopStatusBroadcasts()
         stopInServiceRotationScheduler()
+        stopHealthCheck()
         stopRecording()
         cancelScheduledSegmentRotationWork()
+        cancelRecordingRecovery()
+        releaseAudioFocus()
         segmentManager.cancel()
         releaseWakeLock()
         performanceMonitor?.stop()
         unregisterTelephonyMonitoring()
         isServiceRunning = false
+        recoveryHandler = null
         serviceScope.cancel()
         super.onDestroy()
     }
@@ -655,6 +691,157 @@ class ListenForegroundService : Service() {
         updateNotification("Recording… ${if (!lastDirection.isNullOrEmpty()) "(continued after $lastDirection call)" else ""}")
         
         AppLog.d(TAG, "Call ended, microphone recording continues normally")
+    }
+    
+    // Audio focus monitoring
+    private fun initAudioFocusMonitoring() {
+        try {
+            audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            
+            audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+                AppLog.d(TAG, "Audio focus changed: $focusChange")
+                when (focusChange) {
+                    AudioManager.AUDIOFOCUS_GAIN -> {
+                        audioFocusGained = true
+                        // Audio focus regained - ensure recording is active
+                        if (isServiceRunning && !audioRecorder.isRecording()) {
+                            AppLog.w(TAG, "Audio focus regained but recording stopped, attempting recovery")
+                            scheduleRecordingRecovery()
+                        }
+                    }
+                    AudioManager.AUDIOFOCUS_LOSS,
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                        audioFocusGained = false
+                        // Audio focus lost - recording might be interrupted
+                        // Don't stop recording immediately, wait to see if MediaRecorder detects it
+                        AppLog.w(TAG, "Audio focus lost - monitoring for recording interruption")
+                    }
+                }
+            }
+            AppLog.d(TAG, "Audio focus monitoring initialized")
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Failed to initialize audio focus monitoring", e)
+        }
+    }
+    
+    private fun requestAudioFocus(): Boolean {
+        return try {
+            val am = audioManager ?: return false
+            val listener = audioFocusChangeListener ?: return false
+            
+            val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(
+                        android.media.AudioAttributes.Builder()
+                            .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                    )
+                    .setOnAudioFocusChangeListener(listener)
+                    .build()
+                audioFocusRequest = focusRequest
+                am.requestAudioFocus(focusRequest)
+            } else {
+                @Suppress("DEPRECATION")
+                am.requestAudioFocus(listener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+            }
+            
+            audioFocusGained = (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+            AppLog.d(TAG, "Audio focus request result: $result")
+            audioFocusGained
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Failed to request audio focus", e)
+            false
+        }
+    }
+    
+    private fun releaseAudioFocus() {
+        try {
+            val am = audioManager ?: return
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                audioFocusRequest?.let { am.abandonAudioFocusRequest(it) }
+                audioFocusRequest = null
+            } else {
+                @Suppress("DEPRECATION")
+                audioFocusChangeListener?.let { am.abandonAudioFocus(it) }
+            }
+            
+            audioFocusGained = false
+            audioManager = null
+            audioFocusChangeListener = null
+            AppLog.d(TAG, "Audio focus released")
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Failed to release audio focus", e)
+        }
+    }
+    
+    // Recording recovery
+    private fun scheduleRecordingRecovery() {
+        // Cancel any pending recovery
+        cancelRecordingRecovery()
+        
+        recoveryRunnable = Runnable {
+            AppLog.d(TAG, "Attempting to recover recording after interruption")
+            if (isServiceRunning && !audioRecorder.isRecording() && !isPlaybackActive) {
+                // Try to restart recording
+                val recovered = startRecording()
+                if (recovered) {
+                    updateNotification("Recording resumed after interruption")
+                    AppLog.d(TAG, "Recording recovered successfully")
+                } else {
+                    AppLog.w(TAG, "Recording recovery failed, will retry later")
+                    updateNotification("Recording interrupted. Retrying...")
+                    // Schedule another recovery attempt after longer delay
+                    recoveryHandler?.postDelayed({
+                        scheduleRecordingRecovery()
+                    }, RECOVERY_DELAY_MS * 5)
+                }
+            }
+            recoveryRunnable = null
+        }
+        
+        recoveryHandler?.postDelayed(recoveryRunnable!!, RECOVERY_DELAY_MS)
+    }
+    
+    private fun cancelRecordingRecovery() {
+        recoveryRunnable?.let {
+            recoveryHandler?.removeCallbacks(it)
+            recoveryRunnable = null
+        }
+    }
+    
+    // Periodic health check
+    private fun startHealthCheck() {
+        // Cancel any existing health check
+        stopHealthCheck()
+        
+        healthCheckRunnable = object : Runnable {
+            override fun run() {
+                if (isServiceRunning && !isPlaybackActive) {
+                    // Check if recording is still healthy
+                    val isHealthy = audioRecorder.checkRecordingHealth()
+                    
+                    if (!isHealthy && !audioRecorder.isRecording()) {
+                        AppLog.w(TAG, "Health check detected recording stopped unexpectedly")
+                        scheduleRecordingRecovery()
+                    }
+                    
+                    // Schedule next check
+                    recoveryHandler?.postDelayed(this, HEALTH_CHECK_INTERVAL_MS)
+                }
+            }
+        }
+        
+        recoveryHandler?.postDelayed(healthCheckRunnable!!, HEALTH_CHECK_INTERVAL_MS)
+    }
+    
+    private fun stopHealthCheck() {
+        healthCheckRunnable?.let {
+            recoveryHandler?.removeCallbacks(it)
+            healthCheckRunnable = null
+        }
     }
     
     /** Pause recording for playback to prevent audio feedback loops */

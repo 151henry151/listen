@@ -5,6 +5,30 @@ All notable changes to the Listen app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.6] - 2025-01-14
+
+### Fixed
+- **Missing Recording Segments Bug**: Fixed critical issue where large portions of recordings were lost when phone calls or other apps (e.g., WhatsApp) used the microphone during recording
+- **Automatic Recovery**: Implemented automatic detection and recovery mechanism for recording interruptions
+- **Audio Focus Monitoring**: Added audio focus change listener to detect when microphone access is lost to other apps
+- **MediaRecorder Error Detection**: Added error callbacks to detect when MediaRecorder fails or is interrupted
+- **Recording Health Checks**: Added periodic health checks (every 10 seconds) to verify recording is still active
+
+### Added
+- **Error Recovery System**: Automatic restart of recording when interruptions are detected
+- **Segment Preservation**: Current segment is saved before recovery attempts to prevent data loss
+- **Proactive Monitoring**: Health check system detects silent failures before they cause data loss
+- **Recovery Retry Logic**: Exponential backoff retry mechanism if initial recovery fails
+
+### Technical Changes
+- **AudioRecorderService**: Added MediaRecorder error callbacks (`setOnErrorListener`, `setOnInfoListener`) for API 29+
+- **ListenForegroundService**: Added AudioManager focus change listener to monitor microphone access conflicts
+- **Recovery Mechanism**: Implemented automatic recovery scheduler with configurable delays and retries
+- **Health Check**: Periodic verification of MediaRecorder state through amplitude checks
+- **Audio Focus Management**: Proper request and release of audio focus with lifecycle management
+
+---
+
 ## [1.1.5] - 2025-01-14
 
 ### Fixed
