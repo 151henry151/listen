@@ -145,16 +145,54 @@ class AudioRecorderService(
             
             AppLog.d(TAG, "Stopped recording: ${completedFile?.absolutePath}, duration: ${duration}ms")
             
-            // Notify completion
-            completedFile?.let { file ->
-                onSegmentCompleted?.invoke(file, segmentStartTime, duration)
-            }
+            // Wait for file to be fully written to disk
+            // MediaRecorder.stop() doesn't guarantee immediate flush, so we verify
+            val validatedFile = waitForFileToExist(completedFile)
             
-            completedFile
+            // Notify completion only if file exists and has content
+            validatedFile?.let { file ->
+                onSegmentCompleted?.invoke(file, segmentStartTime, duration)
+            } ?: AppLog.e(TAG, "File validation failed: ${completedFile?.absolutePath}")
+            
+            validatedFile
             
         } catch (e: Exception) {
             AppLog.e(TAG, "Error stopping recording", e)
             cleanup()
+            null
+        }
+    }
+    
+    /** Wait for file to exist and have content (up to 2 seconds with retries) */
+    private fun waitForFileToExist(file: File?, maxWaitMs: Long = 2000L): File? {
+        if (file == null) return null
+        
+        val startTime = System.currentTimeMillis()
+        val checkInterval = 100L // Check every 100ms
+        
+        while (System.currentTimeMillis() - startTime < maxWaitMs) {
+            try {
+                if (file.exists() && file.length() > 0 && file.canRead()) {
+                    AppLog.d(TAG, "File validated: ${file.absolutePath}, size: ${file.length()} bytes")
+                    return file
+                }
+            } catch (e: Exception) {
+                AppLog.w(TAG, "Error checking file existence: ${e.message}")
+            }
+            
+            // Wait before next check
+            try {
+                Thread.sleep(checkInterval)
+            } catch (_: InterruptedException) {
+                break
+            }
+        }
+        
+        // Final check after wait
+        return if (file.exists() && file.length() > 0 && file.canRead()) {
+            file
+        } else {
+            AppLog.e(TAG, "File did not become available: ${file.absolutePath}, exists=${file.exists()}, size=${file.length()}")
             null
         }
     }

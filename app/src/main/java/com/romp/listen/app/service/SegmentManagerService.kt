@@ -37,8 +37,24 @@ class SegmentManagerService(
     fun addSegment(file: File, startTime: Long, duration: Long, isPhoneCall: Boolean = false, callDirection: String? = null, phoneNumber: String? = null) {
         scope.launch {
             try {
-                val endTime = startTime + duration
+                // Validate file exists and has content before adding to database
+                if (!file.exists()) {
+                    AppLog.e(TAG, "Cannot add segment: file does not exist: ${file.absolutePath}")
+                    return@launch
+                }
+                
+                if (!file.canRead()) {
+                    AppLog.e(TAG, "Cannot add segment: file is not readable: ${file.absolutePath}")
+                    return@launch
+                }
+                
                 val fileSize = file.length()
+                if (fileSize == 0L) {
+                    AppLog.e(TAG, "Cannot add segment: file is empty: ${file.absolutePath}")
+                    return@launch
+                }
+                
+                val endTime = startTime + duration
                 
                 val segment = Segment(
                     filePath = file.absolutePath,
@@ -52,10 +68,11 @@ class SegmentManagerService(
                 )
                 
                 val segmentId = segmentDao.insertSegment(segment)
-                AppLog.d(TAG, "Added segment to database: ID=$segmentId, file=${file.name}")
+                AppLog.d(TAG, "Added segment to database: ID=$segmentId, file=${file.name}, size=$fileSize bytes")
                 
-                // Perform cleanup after adding new segment
-                performCleanup()
+                // Perform cleanup after adding new segment, but exclude the newly added segment
+                // by passing its ID to prevent it from being deleted immediately
+                performCleanup(excludeSegmentId = segmentId)
                 
             } catch (e: Exception) {
                 AppLog.e(TAG, "Error adding segment to database", e)
@@ -64,14 +81,14 @@ class SegmentManagerService(
     }
     
     /** Perform cleanup of old segments and storage management */
-    fun performCleanup() {
+    fun performCleanup(excludeSegmentId: Long? = null) {
         scope.launch {
             try {
                 // Clean up old segments based on retention period
-                cleanupOldSegments()
+                cleanupOldSegments(excludeSegmentId)
                 
                 // Enforce storage limits
-                enforceStorageLimits()
+                enforceStorageLimits(excludeSegmentId)
                 
                 // Clean up orphaned files
                 cleanupOrphanedFiles()
@@ -83,7 +100,7 @@ class SegmentManagerService(
     }
     
     /** Clean up segments older than retention period */
-    private suspend fun cleanupOldSegments() {
+    private suspend fun cleanupOldSegments(excludeSegmentId: Long? = null) {
         val currentTime = System.currentTimeMillis()
         val retentionPeriodMs = settings.retentionPeriodMinutes * 60 * 1000L
         val cutoffTime = currentTime - retentionPeriodMs
@@ -94,6 +111,12 @@ class SegmentManagerService(
             AppLog.d(TAG, "Cleaning up ${oldSegments.size} old segments")
             
             oldSegments.forEach { segment ->
+                // Skip the excluded segment (newly added)
+                if (excludeSegmentId != null && segment.id == excludeSegmentId) {
+                    AppLog.d(TAG, "Skipping cleanup of newly added segment: ${segment.filePath}")
+                    return@forEach
+                }
+                
                 if (storageManager.deleteFile(segment.filePath)) {
                     segmentDao.deleteSegment(segment)
                     AppLog.d(TAG, "Deleted old segment: ${segment.filePath}")
@@ -105,7 +128,7 @@ class SegmentManagerService(
     }
     
     /** Enforce storage limits */
-    private suspend fun enforceStorageLimits() {
+    private suspend fun enforceStorageLimits(excludeSegmentId: Long? = null) {
         val maxStorageBytes = settings.maxStorageMB * 1024L * 1024L
         val currentUsage = segmentDao.getTotalStorageUsage() ?: 0L
         
@@ -119,6 +142,12 @@ class SegmentManagerService(
                 if (oldestBatch.isEmpty()) break
                 
                 for (segment in oldestBatch) {
+                    // Skip the excluded segment (newly added)
+                    if (excludeSegmentId != null && segment.id == excludeSegmentId) {
+                        AppLog.d(TAG, "Skipping cleanup of newly added segment: ${segment.filePath}")
+                        continue
+                    }
+                    
                     if (excessBytes <= 0) break
                     val size = File(segment.filePath).length()
                     if (storageManager.deleteFile(segment.filePath)) {
