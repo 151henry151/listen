@@ -5,6 +5,22 @@ All notable changes to the Listen app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2-beta] - 2026-01-13
+
+### Fixed
+- **Save/Export Button Not Working (Issue #26)**: Fixed critical issue where save/export button was not working on Android 10+ due to scoped storage restrictions
+- **Current Playing Segment Highlighting (Issue #24)**: Added visual highlighting (light purple background) to currently playing segment in the playback list for better user feedback
+- **Playback Speed Button Selection Focus (Issue #25)**: Fixed visual indicator for playback speed buttons to accurately reflect the selected speed
+
+### Technical Changes
+- **FileUtils**: Updated `saveSegmentToSavedDirectory()` to use MediaStore API for Android 10+ (API 29+) scoped storage compliance
+- **MediaStore Integration**: Files are now saved to Downloads directory using MediaStore API for proper scoped storage support
+- **SegmentAdapter**: Added `setCurrentlyPlayingSegment()` method to highlight the active segment in the list
+- **PlaybackActivity**: Improved playback speed button state management by storing and restoring original button styles
+- **Visual Feedback**: Enhanced user experience with better visual indicators for playback state
+
+---
+
 ## [1.2.1-beta] - 2026-01-12
 
 ### Fixed
