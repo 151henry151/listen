@@ -156,7 +156,13 @@ class ListenForegroundService : Service() {
             database = ListenDatabase.getDatabase(this)
             
             AppLog.d(TAG, "Initializing StorageManager")
-            storageManager = StorageManager(this)
+            val customPath = settings.customStorageDirectoryPath
+            storageManager = if (customPath != null) {
+                val customDir = File(customPath)
+                StorageManager(this, customDir)
+            } else {
+                StorageManager(this)
+            }
             
             AppLog.d(TAG, "Initializing AudioRecorderService")
             audioRecorder = AudioRecorderService(this, storageManager)

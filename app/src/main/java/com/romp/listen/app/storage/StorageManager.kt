@@ -10,9 +10,11 @@ import com.romp.listen.app.util.AppLog
 /**
  * Manages file system operations for audio segments
  */
-class StorageManager(private val context: Context) {
+class StorageManager(private val context: Context, customBaseDirectory: File? = null) {
     
-    private val segmentsDir: File = File(context.filesDir, "segments").apply {
+    private val baseDirectory: File = customBaseDirectory ?: context.filesDir
+    
+    private val segmentsDir: File = File(baseDirectory, "segments").apply {
         // Ensure directory exists and is writable
         if (!exists()) {
             val created = mkdirs()
@@ -255,6 +257,23 @@ class StorageManager(private val context: Context) {
     
     companion object {
         private const val TAG = "StorageManager"
+        
+        /**
+         * Create StorageManager using settings (checks for custom directory)
+         */
+        fun create(context: Context, customDirectoryPath: String?): StorageManager {
+            val baseDir = if (customDirectoryPath != null) {
+                val dir = File(customDirectoryPath)
+                if (dir.exists() && dir.canWrite()) {
+                    dir
+                } else {
+                    null // Invalid custom directory, fall back to default
+                }
+            } else {
+                null
+            }
+            return StorageManager(context, baseDir)
+        }
     }
     
     /** Storage health report data class */

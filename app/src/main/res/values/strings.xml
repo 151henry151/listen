@@ -132,6 +132,14 @@
     <string name="msg_save_no_permission">Storage permission required to save files</string>
     <string name="msg_save_invalid_filename">Please enter a valid filename</string>
     
+    <!-- Storage Directory Error Dialog -->
+    <string name="dialog_storage_error_title">Storage Directory Error</string>
+    <string name="dialog_storage_error_message">There was an issue with directory creation/writability at the default directory location. Choose another directory to continue.</string>
+    <string name="dialog_storage_error_use_external">Use External Storage</string>
+    <string name="dialog_storage_error_cancel">Cancel</string>
+    <string name="dialog_storage_error_success">Storage directory changed successfully</string>
+    <string name="dialog_storage_error_failed">Failed to use external storage. Please try again or restart the app.</string>
+    
     <!-- Delete Dialog -->
     <string name="dialog_delete_segment_title">Delete Recording</string>
     <string name="dialog_delete_segment_message">Are you sure you want to delete this recording? This action cannot be undone.</string>

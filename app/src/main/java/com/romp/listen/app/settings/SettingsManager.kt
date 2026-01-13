@@ -3,6 +3,7 @@ package com.romp.listen.app.settings
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import java.io.File
 
 /**
  * Manages app settings and configuration
@@ -104,6 +105,23 @@ class SettingsManager(context: Context) {
         get() = prefs.getBoolean(KEY_USER_CONSENTED_TO_RECORDING, false)
         set(value) = prefs.edit { putBoolean(KEY_USER_CONSENTED_TO_RECORDING, value) }
     
+    /** Custom storage directory path (null means use default) */
+    var customStorageDirectoryPath: String?
+        get() {
+            val path = prefs.getString(KEY_CUSTOM_STORAGE_DIRECTORY, null)
+            // Validate that the stored path is still valid
+            if (path != null) {
+                val dir = File(path)
+                if (!dir.exists() || !dir.canWrite()) {
+                    // Path is no longer valid, clear it
+                    customStorageDirectoryPath = null
+                    return null
+                }
+            }
+            return path
+        }
+        set(value) = prefs.edit { putString(KEY_CUSTOM_STORAGE_DIRECTORY, value) }
+    
     /** Get recent segments (placeholder - would need database access) */
     fun getRecentSegments(limit: Int = 10): List<String> {
         // This is a placeholder implementation
@@ -148,6 +166,7 @@ class SettingsManager(context: Context) {
         private const val KEY_ADAPTIVE_PERFORMANCE = "adaptive_performance"
         private const val KEY_SHOW_NOTIFICATION = "show_notification"
         private const val KEY_USER_CONSENTED_TO_RECORDING = "user_consented_to_recording"
+        private const val KEY_CUSTOM_STORAGE_DIRECTORY = "custom_storage_directory"
         
         // Default values
         const val DEFAULT_SEGMENT_DURATION = 120 // 2 minutes (changed from 60)

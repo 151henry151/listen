@@ -679,19 +679,19 @@ class PlaybackActivity : AppCompatActivity() {
                 setOnPreparedListener { player ->
                     try {
                         if (player == mediaPlayer) { // Ensure this is still the current player
-                            player.start()
-                            currentSavedSegment = savedSegment
-                            btnPlayPause.isEnabled = true
-                            btnStop.isEnabled = true
-                            btnSave.isEnabled = false // Already saved
-                            btnDelete.isEnabled = true
-                            seekBar.isEnabled = true
-                            seekBar.max = player.duration
-                            tvTotalTime.text = formatMs(player.duration.toLong())
-                            tvCurrentTime.text = formatMs(0)
-                            startProgressUpdater()
-                            updatePlayPauseButton()
-                            AppLog.d(TAG, "Started playing saved segment: ${savedSegment.filePath}")
+                        player.start()
+                        currentSavedSegment = savedSegment
+                        btnPlayPause.isEnabled = true
+                        btnStop.isEnabled = true
+                        btnSave.isEnabled = false // Already saved
+                        btnDelete.isEnabled = true
+                        seekBar.isEnabled = true
+                        seekBar.max = player.duration
+                        tvTotalTime.text = formatMs(player.duration.toLong())
+                        tvCurrentTime.text = formatMs(0)
+                        startProgressUpdater()
+                        updatePlayPauseButton()
+                        AppLog.d(TAG, "Started playing saved segment: ${savedSegment.filePath}")
                         }
                     } catch (e: Exception) {
                         AppLog.e(TAG, "Error starting playback after preparation", e)
@@ -899,19 +899,19 @@ class PlaybackActivity : AppCompatActivity() {
                 setOnPreparedListener { player ->
                     try {
                         if (player == mediaPlayer) { // Ensure this is still the current player
-                            player.start()
-                            currentSegment = segment
-                            btnPlayPause.isEnabled = true
-                            btnStop.isEnabled = true
-                            btnSave.isEnabled = true
-                            btnDelete.isEnabled = true
-                            seekBar.isEnabled = true
-                            seekBar.max = player.duration
-                            tvTotalTime.text = formatMs(player.duration.toLong())
-                            tvCurrentTime.text = formatMs(0)
-                            startProgressUpdater()
-                            updatePlayPauseButton()
-                            AppLog.d(TAG, "Started playing segment: ${segment.filePath}")
+                        player.start()
+                        currentSegment = segment
+                        btnPlayPause.isEnabled = true
+                        btnStop.isEnabled = true
+                        btnSave.isEnabled = true
+                        btnDelete.isEnabled = true
+                        seekBar.isEnabled = true
+                        seekBar.max = player.duration
+                        tvTotalTime.text = formatMs(player.duration.toLong())
+                        tvCurrentTime.text = formatMs(0)
+                        startProgressUpdater()
+                        updatePlayPauseButton()
+                        AppLog.d(TAG, "Started playing segment: ${segment.filePath}")
                         }
                     } catch (e: Exception) {
                         AppLog.e(TAG, "Error starting playback after preparation", e)

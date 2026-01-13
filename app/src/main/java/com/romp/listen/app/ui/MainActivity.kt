@@ -146,13 +146,17 @@ class MainActivity : AppCompatActivity() {
             // Step 4: Initialize StorageManager
             try {
                 writeDebugLog("Initializing StorageManager...")
-            storageManager = StorageManager(this)
+                storageManager = initializeStorageManager()
                 writeDebugLog("StorageManager initialized successfully")
-            Log.d(TAG, "StorageManager initialized")
+                Log.d(TAG, "StorageManager initialized")
             } catch (e: Exception) {
                 writeDebugLog("StorageManager initialization failed: ${e.message}")
                 Log.e(TAG, "StorageManager initialization failed", e)
-                throw e
+                // Don't throw - show dialog to let user choose alternative directory
+                showStorageDirectoryErrorDialog(e)
+                // We can't continue without storage, but we'll let the dialog handle recovery
+                // For now, we'll need to handle this gracefully - the dialog will retry initialization
+                return
             }
             
             // Step 5: Set up UI
@@ -707,6 +711,90 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             AppLog.e(TAG, "Error showing boot recovery prompt", e)
             writeDebugLog("Error showing boot recovery prompt: ${e.message}")
+        }
+    }
+    
+    /** Initialize StorageManager using settings (checks for custom directory) */
+    private fun initializeStorageManager(): StorageManager {
+        val customPath = settings.customStorageDirectoryPath
+        return if (customPath != null) {
+            val customDir = File(customPath)
+            StorageManager(this, customDir)
+        } else {
+            StorageManager(this)
+        }
+    }
+    
+    /** Show dialog when storage directory initialization fails */
+    private fun showStorageDirectoryErrorDialog(error: Exception) {
+        try {
+            AlertDialog.Builder(this)
+                .setTitle(getString(R.string.dialog_storage_error_title))
+                .setMessage(getString(R.string.dialog_storage_error_message))
+                .setPositiveButton(getString(R.string.dialog_storage_error_use_external)) { _, _ ->
+                    // Try to use external storage
+                    tryUseExternalStorage()
+                }
+                .setNegativeButton(getString(R.string.dialog_storage_error_cancel)) { _, _ ->
+                    // User cancelled - we can't continue without storage
+                    finish()
+                }
+                .setCancelable(false) // Force user to make a choice
+                .show()
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Error showing storage directory error dialog", e)
+            writeDebugLog("Error showing storage directory error dialog: ${e.message}")
+        }
+    }
+    
+    /** Try to use external storage as fallback */
+    private fun tryUseExternalStorage() {
+        try {
+            val externalDir = getExternalFilesDir(null)
+            if (externalDir != null) {
+                // Save the custom directory path to settings
+                settings.customStorageDirectoryPath = externalDir.absolutePath
+                AppLog.d(TAG, "Using external storage: ${externalDir.absolutePath}")
+                writeDebugLog("Using external storage: ${externalDir.absolutePath}")
+                
+                // Try to initialize StorageManager with external directory
+                storageManager = StorageManager(this, externalDir)
+                
+                // Success!
+                Toast.makeText(this, getString(R.string.dialog_storage_error_success), Toast.LENGTH_SHORT).show()
+                
+                // Continue with app initialization - setup UI
+                try {
+                    setupUI()
+                } catch (e: Exception) {
+                    AppLog.e(TAG, "Error setting up UI after storage fix", e)
+                    writeDebugLog("Error setting up UI after storage fix: ${e.message}")
+                }
+                
+                // Check for boot recovery
+                try {
+                    checkBootRecovery()
+                } catch (e: Exception) {
+                    writeDebugLog("Boot recovery check failed: ${e.message}")
+                }
+                
+                // Check permissions
+                try {
+                    checkBasicPermissions()
+                } catch (e: Exception) {
+                    writeDebugLog("Basic permissions check failed: ${e.message}")
+                }
+            } else {
+                // External storage not available
+                Toast.makeText(this, getString(R.string.dialog_storage_error_failed), Toast.LENGTH_LONG).show()
+                AppLog.e(TAG, "External storage not available")
+                finish()
+            }
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Error trying to use external storage", e)
+            writeDebugLog("Error trying to use external storage: ${e.message}")
+            Toast.makeText(this, getString(R.string.dialog_storage_error_failed), Toast.LENGTH_LONG).show()
+            finish()
         }
     }
     
