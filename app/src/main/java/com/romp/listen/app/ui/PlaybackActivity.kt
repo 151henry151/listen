@@ -661,10 +661,42 @@ class PlaybackActivity : AppCompatActivity() {
                 break
             }
         }
+        
+        // Ensure a segment is always selected
+        if (currentSegment == null && segments.isNotEmpty()) {
+            // Select the first segment if none is selected
+            selectSegment(segments[0])
+        } else if (currentSegment != null) {
+            // Update index if current segment still exists in the list
+            val index = segments.indexOfFirst { it.id == currentSegment!!.id }
+            if (index >= 0) {
+                currentSegmentIndex = index
+                updateCurrentSegmentInfo(segments[index])
+            } else if (segments.isNotEmpty()) {
+                // Current segment was deleted, select first segment
+                selectSegment(segments[0])
+            }
+        }
+        
         updateNavigationButtons()
         
         // Ensure fragment listeners are set up
         setupFragmentListeners()
+    }
+    
+    /** Select a segment (without playing it) */
+    private fun selectSegment(segment: Segment) {
+        val index = segments.indexOfFirst { it.id == segment.id }
+        if (index >= 0) {
+            currentSegment = segments[index]
+            currentSegmentIndex = index
+            updateCurrentSegmentInfo(currentSegment!!)
+        } else if (segments.isNotEmpty()) {
+            // Segment not found, select first segment
+            currentSegment = segments[0]
+            currentSegmentIndex = 0
+            updateCurrentSegmentInfo(currentSegment!!)
+        }
     }
     
     /** Update the saved segments list in the UI */
@@ -1042,14 +1074,14 @@ class PlaybackActivity : AppCompatActivity() {
             player.release()
         }
         mediaPlayer = null
-        currentSegment = null
+        // Keep currentSegment selected (don't set to null) so buttons remain enabled
         currentSavedSegment = null
         updateSegmentHighlight() // Clear highlighting when playback stops
         abandonAudioFocus()
         btnPlayPause.isEnabled = false
         btnStop.isEnabled = false
-        btnSave.isEnabled = false
-        btnDelete.isEnabled = false
+        // Keep save/delete buttons enabled if a segment is selected
+        updateNavigationButtons()
         seekBar.isEnabled = false
         updatePlayPauseButton()
         
