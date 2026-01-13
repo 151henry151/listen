@@ -5,6 +5,18 @@ All notable changes to the Listen app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1-beta] - 2026-01-12
+
+### Fixed
+- **ActionBar Overlap**: Fixed ActionBar overlapping content on MainActivity and PlaybackActivity by using NoActionBar theme variant
+- **Navigation Bar Overlap**: Fixed bottom buttons being obscured by Android system navigation bar on PlaybackActivity by adding window insets padding
+
+### Technical Changes
+- **Theme**: Changed theme parent from `Theme.Material3.DayNight` to `Theme.Material3.DayNight.NoActionBar` to remove ActionBar
+- **PlaybackActivity**: Added window insets handling using ViewCompat to add bottom padding for navigation bar
+
+---
+
 ## [1.2.0-beta] - 2026-01-12
 
 ### Added
