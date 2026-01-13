@@ -5,6 +5,28 @@ All notable changes to the Listen app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0-beta] - 2026-01-12
+
+### Added
+- **Playback Speed Controls (Issue #22)**: Added playback speed options (0.5×, 1×, 2×) to allow users to play recordings at different speeds for faster review or detailed listening
+- **Custom Storage Directory Selection**: When default storage directory creation/writability fails, users can now choose an alternative directory (external storage) via a dialog prompt
+- **Storage Directory Settings**: Custom directory path is saved to settings and used for future app initializations
+
+### Fixed
+- **Android 8 Storage Issues (Issue #23)**: Fixed storage directory creation validation - now properly checks if directory creation succeeds and validates writability
+- **UI Cropping on Smaller Screens (Issue #23)**: Fixed layout issue where Settings button was cut off on smaller screen devices (e.g., BlackBerry KEY2) by wrapping MainActivity layout in ScrollView
+
+### Technical Changes
+- **PlaybackActivity**: Added playback speed controls using MediaPlayer PlaybackParams (API 23+)
+- **Playback Speed UI**: Added speed selection buttons with visual feedback for selected speed
+- **StorageManager**: Enhanced directory creation validation with proper error checking and logging
+- **SettingsManager**: Added `customStorageDirectoryPath` setting to persist user's directory choice
+- **MainActivity**: Added directory selection dialog and external storage fallback mechanism
+- **ListenForegroundService**: Updated to use custom directory from settings when initializing StorageManager
+- **Layout**: Wrapped MainActivity ConstraintLayout in ScrollView for better small-screen compatibility
+
+---
+
 ## [1.1.7] - 2025-12-27
 
 ### Fixed

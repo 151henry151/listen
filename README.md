@@ -1,5 +1,7 @@
 # Listen - Background Audio Recording App
 
+**Download the latest release from [hromp.com/listen/](https://hromp.com/listen/)**
+
 A sophisticated Android application designed to continuously record audio in the background, providing users with a rolling window of audio history for review and analysis.
 
 ## 🎯 Purpose

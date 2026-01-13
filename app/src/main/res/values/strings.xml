@@ -147,6 +147,10 @@
     <string name="dialog_delete_all_message">Are you sure you want to clear all rotating recordings? Saved recordings will be preserved. This action cannot be undone.</string>
     <string name="btn_delete">Delete</string>
     <string name="btn_delete_all">Clear All</string>
+    <string name="playback_speed">Playback Speed</string>
+    <string name="playback_speed_0_5x">0.5×</string>
+    <string name="playback_speed_1x">1×</string>
+    <string name="playback_speed_2x">2×</string>
     <string name="btn_cancel">Cancel</string>
     <string name="msg_delete_success">Recording deleted successfully</string>
     <string name="msg_delete_all_success">All recordings cleared successfully</string>

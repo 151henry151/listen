@@ -1,6 +1,8 @@
 package com.romp.listen.app.ui
 
 import android.media.MediaPlayer
+import android.media.PlaybackParams
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
@@ -18,6 +20,8 @@ import android.media.AudioManager
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
+import androidx.core.content.ContextCompat
+import android.content.res.ColorStateList
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import android.widget.Button
@@ -72,6 +76,11 @@ class PlaybackActivity : AppCompatActivity() {
     private lateinit var btnShare: Button
     private lateinit var btnDelete: Button
     private lateinit var btnClearAll: Button
+    private lateinit var btnSpeed05x: Button
+    private lateinit var btnSpeed1x: Button
+    private lateinit var btnSpeed2x: Button
+    
+    private var playbackSpeed: Float = 1.0f
     
     private var segments: List<Segment> = emptyList()
     private var savedSegments: List<SavedSegment> = emptyList()
@@ -119,6 +128,9 @@ class PlaybackActivity : AppCompatActivity() {
         btnShare = findViewById(R.id.btn_share)
         btnDelete = findViewById(R.id.btn_delete)
         btnClearAll = findViewById(R.id.btn_clear_all)
+        btnSpeed05x = findViewById(R.id.btn_speed_0_5x)
+        btnSpeed1x = findViewById(R.id.btn_speed_1x)
+        btnSpeed2x = findViewById(R.id.btn_speed_2x)
         
         // Set up ViewPager and TabLayout
         pagerAdapter = PlaybackPagerAdapter(this)
@@ -209,6 +221,18 @@ class PlaybackActivity : AppCompatActivity() {
                 1 -> showDeleteAllSavedDialog()
             }
         }
+        
+        // Set up playback speed buttons
+        btnSpeed05x.setOnClickListener {
+            setPlaybackSpeed(0.5f)
+        }
+        btnSpeed1x.setOnClickListener {
+            setPlaybackSpeed(1.0f)
+        }
+        btnSpeed2x.setOnClickListener {
+            setPlaybackSpeed(2.0f)
+        }
+        updatePlaybackSpeedButtons()
         
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -679,6 +703,7 @@ class PlaybackActivity : AppCompatActivity() {
                 setOnPreparedListener { player ->
                     try {
                         if (player == mediaPlayer) { // Ensure this is still the current player
+                        applyPlaybackSpeed()
                         player.start()
                         currentSavedSegment = savedSegment
                         btnPlayPause.isEnabled = true
@@ -899,6 +924,7 @@ class PlaybackActivity : AppCompatActivity() {
                 setOnPreparedListener { player ->
                     try {
                         if (player == mediaPlayer) { // Ensure this is still the current player
+                        applyPlaybackSpeed()
                         player.start()
                         currentSegment = segment
                         btnPlayPause.isEnabled = true
@@ -1116,6 +1142,39 @@ class PlaybackActivity : AppCompatActivity() {
         } catch (e: Exception) {
             AppLog.e(TAG, "Error sending resume recording command", e)
         }
+    }
+    
+    /** Set playback speed */
+    private fun setPlaybackSpeed(speed: Float) {
+        playbackSpeed = speed
+        updatePlaybackSpeedButtons()
+        applyPlaybackSpeed()
+    }
+    
+    /** Apply playback speed to MediaPlayer */
+    private fun applyPlaybackSpeed() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            mediaPlayer?.let { player ->
+                try {
+                    val params = PlaybackParams().setSpeed(playbackSpeed)
+                    player.playbackParams = params
+                    AppLog.d(TAG, "Applied playback speed: ${playbackSpeed}x")
+                } catch (e: Exception) {
+                    AppLog.e(TAG, "Error applying playback speed", e)
+                }
+            }
+        }
+    }
+    
+    /** Update playback speed button states */
+    private fun updatePlaybackSpeedButtons() {
+        val primaryColor = ContextCompat.getColor(this, R.color.button_primary)
+        val selectedTint = ColorStateList.valueOf(primaryColor)
+        
+        // Reset all buttons - apply selected tint to active button, null to others
+        btnSpeed05x.backgroundTintList = if (playbackSpeed == 0.5f) selectedTint else null
+        btnSpeed1x.backgroundTintList = if (playbackSpeed == 1.0f) selectedTint else null
+        btnSpeed2x.backgroundTintList = if (playbackSpeed == 2.0f) selectedTint else null
     }
     
     companion object {
