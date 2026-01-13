@@ -84,6 +84,9 @@ class PlaybackActivity : AppCompatActivity() {
     private lateinit var btnSpeed2x: Button
     
     private var playbackSpeed: Float = 1.0f
+    private var originalBtnSpeed05xTint: ColorStateList? = null
+    private var originalBtnSpeed1xTint: ColorStateList? = null
+    private var originalBtnSpeed2xTint: ColorStateList? = null
     
     private var segments: List<Segment> = emptyList()
     private var savedSegments: List<SavedSegment> = emptyList()
@@ -134,6 +137,11 @@ class PlaybackActivity : AppCompatActivity() {
         btnSpeed05x = findViewById(R.id.btn_speed_0_5x)
         btnSpeed1x = findViewById(R.id.btn_speed_1x)
         btnSpeed2x = findViewById(R.id.btn_speed_2x)
+        
+        // Store original backgroundTintList values
+        originalBtnSpeed05xTint = btnSpeed05x.backgroundTintList
+        originalBtnSpeed1xTint = btnSpeed1x.backgroundTintList
+        originalBtnSpeed2xTint = btnSpeed2x.backgroundTintList
         
         // Set up ViewPager and TabLayout
         pagerAdapter = PlaybackPagerAdapter(this)
@@ -1203,10 +1211,10 @@ class PlaybackActivity : AppCompatActivity() {
         val primaryColor = ContextCompat.getColor(this, R.color.button_primary)
         val selectedTint = ColorStateList.valueOf(primaryColor)
         
-        // Reset all buttons - apply selected tint to active button, null to others
-        btnSpeed05x.backgroundTintList = if (playbackSpeed == 0.5f) selectedTint else null
-        btnSpeed1x.backgroundTintList = if (playbackSpeed == 1.0f) selectedTint else null
-        btnSpeed2x.backgroundTintList = if (playbackSpeed == 2.0f) selectedTint else null
+        // Apply selected tint to active button, restore original for others
+        btnSpeed05x.backgroundTintList = if (playbackSpeed == 0.5f) selectedTint else originalBtnSpeed05xTint
+        btnSpeed1x.backgroundTintList = if (playbackSpeed == 1.0f) selectedTint else originalBtnSpeed1xTint
+        btnSpeed2x.backgroundTintList = if (playbackSpeed == 2.0f) selectedTint else originalBtnSpeed2xTint
     }
     
     companion object {
