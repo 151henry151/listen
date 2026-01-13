@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.romp.listen.app.R
 import com.romp.listen.app.data.Segment
@@ -12,6 +13,8 @@ class SegmentAdapter(
 	private var items: List<Segment>,
 	private val onClick: (Segment) -> Unit
 ) : RecyclerView.Adapter<SegmentAdapter.SegmentViewHolder>() {
+
+	private var currentlyPlayingSegmentId: Long? = null
 
 	class SegmentViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 		val tvTime: TextView = itemView.findViewById(R.id.tv_time)
@@ -36,6 +39,16 @@ class SegmentAdapter(
 		} else {
 			holder.tvCallBadge?.visibility = View.GONE
 		}
+		
+		// Highlight currently playing segment
+		val isCurrentlyPlaying = segment.id == currentlyPlayingSegmentId
+		val backgroundColor = if (isCurrentlyPlaying) {
+			ContextCompat.getColor(holder.itemView.context, R.color.segment_selected_background)
+		} else {
+			android.graphics.Color.TRANSPARENT
+		}
+		holder.itemView.setBackgroundColor(backgroundColor)
+		
 		holder.itemView.setOnClickListener { onClick(segment) }
 	}
 
@@ -44,5 +57,24 @@ class SegmentAdapter(
 	fun submitList(newItems: List<Segment>) {
 		items = newItems
 		notifyDataSetChanged()
+	}
+	
+	fun setCurrentlyPlayingSegment(segmentId: Long?) {
+		val previousId = currentlyPlayingSegmentId
+		currentlyPlayingSegmentId = segmentId
+		
+		// Notify changes for both previous and current items to update highlighting
+		if (previousId != null) {
+			val previousIndex = items.indexOfFirst { it.id == previousId }
+			if (previousIndex >= 0) {
+				notifyItemChanged(previousIndex)
+			}
+		}
+		if (segmentId != null) {
+			val currentIndex = items.indexOfFirst { it.id == segmentId }
+			if (currentIndex >= 0) {
+				notifyItemChanged(currentIndex)
+			}
+		}
 	}
 }

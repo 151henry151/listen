@@ -21,10 +21,13 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import android.content.res.ColorStateList
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import kotlinx.coroutines.Dispatchers
@@ -234,6 +237,22 @@ class PlaybackActivity : AppCompatActivity() {
         }
         updatePlaybackSpeedButtons()
         
+        // Handle window insets for navigation bar
+        val rootLayout = findViewById<androidx.constraintlayout.widget.ConstraintLayout>(R.id.root_layout_playback)
+        rootLayout?.let { root ->
+            ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+                val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+                val playbackControls = findViewById<LinearLayout>(R.id.ll_playback_controls)
+                playbackControls?.setPadding(
+                    playbackControls.paddingLeft,
+                    playbackControls.paddingTop,
+                    playbackControls.paddingRight,
+                    systemBars.bottom
+                )
+                insets
+            }
+        }
+        
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
@@ -287,7 +306,6 @@ class PlaybackActivity : AppCompatActivity() {
                         fragment.setOnSegmentClickListener { segment ->
                             AppLog.d(TAG, "RotatingSegmentsFragment segment clicked: ${segment.filePath}")
                             playSegment(segment)
-                            updateCurrentSegmentInfo(segment)
                         }
                     }
                     is SavedSegmentsFragment -> {
@@ -320,7 +338,19 @@ class PlaybackActivity : AppCompatActivity() {
         tvCurrentSegment.text = File(segment.filePath).name
         currentSegmentIndex = segments.indexOf(segment)
         updateNavigationButtons()
+        updateSegmentHighlight()
         AppLog.d(TAG, "Updated current segment info: ${segment.filePath}")
+    }
+    
+    /** Update segment highlighting in the fragment */
+    private fun updateSegmentHighlight() {
+        val fragments = supportFragmentManager.fragments
+        for (fragment in fragments) {
+            if (fragment is RotatingSegmentsFragment) {
+                fragment.setCurrentlyPlayingSegment(currentSegment?.id)
+                break
+            }
+        }
     }
     
     /** Update navigation buttons state */
@@ -927,6 +957,7 @@ class PlaybackActivity : AppCompatActivity() {
                         applyPlaybackSpeed()
                         player.start()
                         currentSegment = segment
+                        updateCurrentSegmentInfo(segment)
                         btnPlayPause.isEnabled = true
                         btnStop.isEnabled = true
                         btnSave.isEnabled = true
@@ -999,6 +1030,7 @@ class PlaybackActivity : AppCompatActivity() {
         mediaPlayer = null
         currentSegment = null
         currentSavedSegment = null
+        updateSegmentHighlight() // Clear highlighting when playback stops
         abandonAudioFocus()
         btnPlayPause.isEnabled = false
         btnStop.isEnabled = false

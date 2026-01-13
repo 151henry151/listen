@@ -25,4 +25,7 @@
     <color name="button_disabled">#FFBDBDBD</color>
     <color name="button_text_primary">#FFFFFFFF</color>
     <color name="button_text_secondary">#FF000000</color>
+    
+    <!-- Segment list colors -->
+    <color name="segment_selected_background">#1F6200EE</color>
 </resources> 

@@ -48,4 +48,8 @@ class RotatingSegmentsFragment : Fragment() {
         segments = newSegments
         adapter.submitList(segments)
     }
+    
+    fun setCurrentlyPlayingSegment(segmentId: Long?) {
+        adapter.setCurrentlyPlayingSegment(segmentId)
+    }
 } 
