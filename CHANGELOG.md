@@ -5,6 +5,20 @@ All notable changes to the Listen app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3-beta] - 2026-01-13
+
+### Fixed
+- **Playback Speed Button Visual Selection**: Fixed visual indicator for playback speed buttons - text color now properly updates to white when selected, making button text visible on the purple background
+- **Button Functionality**: Fixed save/delete/previous/next buttons not working by ensuring a segment is always selected
+- **Segment Selection**: First segment is now automatically selected when segments are loaded, and the last played segment remains selected after playback stops
+
+### Technical Changes
+- **PlaybackActivity**: Store and restore text color state for playback speed buttons along with background tint
+- **Segment Selection Logic**: Added `selectSegment()` method and improved `updateSegmentsList()` to always maintain a selected segment
+- **Playback Stop Behavior**: Modified `stopPlayback()` to keep the current segment selected instead of clearing it
+
+---
+
 ## [1.2.2-beta] - 2026-01-13
 
 ### Fixed
