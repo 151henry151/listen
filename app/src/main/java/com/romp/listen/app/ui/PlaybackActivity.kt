@@ -87,6 +87,9 @@ class PlaybackActivity : AppCompatActivity() {
     private var originalBtnSpeed05xTint: ColorStateList? = null
     private var originalBtnSpeed1xTint: ColorStateList? = null
     private var originalBtnSpeed2xTint: ColorStateList? = null
+    private var originalBtnSpeed05xTextColor: ColorStateList? = null
+    private var originalBtnSpeed1xTextColor: ColorStateList? = null
+    private var originalBtnSpeed2xTextColor: ColorStateList? = null
     
     private var segments: List<Segment> = emptyList()
     private var savedSegments: List<SavedSegment> = emptyList()
@@ -138,10 +141,13 @@ class PlaybackActivity : AppCompatActivity() {
         btnSpeed1x = findViewById(R.id.btn_speed_1x)
         btnSpeed2x = findViewById(R.id.btn_speed_2x)
         
-        // Store original backgroundTintList values
+        // Store original backgroundTintList and textColor values
         originalBtnSpeed05xTint = btnSpeed05x.backgroundTintList
         originalBtnSpeed1xTint = btnSpeed1x.backgroundTintList
         originalBtnSpeed2xTint = btnSpeed2x.backgroundTintList
+        originalBtnSpeed05xTextColor = btnSpeed05x.textColors
+        originalBtnSpeed1xTextColor = btnSpeed1x.textColors
+        originalBtnSpeed2xTextColor = btnSpeed2x.textColors
         
         // Set up ViewPager and TabLayout
         pagerAdapter = PlaybackPagerAdapter(this)
@@ -1209,12 +1215,22 @@ class PlaybackActivity : AppCompatActivity() {
     /** Update playback speed button states */
     private fun updatePlaybackSpeedButtons() {
         val primaryColor = ContextCompat.getColor(this, R.color.button_primary)
+        val whiteColor = ContextCompat.getColor(this, R.color.white)
         val selectedTint = ColorStateList.valueOf(primaryColor)
+        val selectedTextColor = ColorStateList.valueOf(whiteColor)
         
-        // Apply selected tint to active button, restore original for others
-        btnSpeed05x.backgroundTintList = if (playbackSpeed == 0.5f) selectedTint else originalBtnSpeed05xTint
-        btnSpeed1x.backgroundTintList = if (playbackSpeed == 1.0f) selectedTint else originalBtnSpeed1xTint
-        btnSpeed2x.backgroundTintList = if (playbackSpeed == 2.0f) selectedTint else originalBtnSpeed2xTint
+        // Apply selected tint and text color to active button, restore original for others
+        val is05xSelected = playbackSpeed == 0.5f
+        btnSpeed05x.backgroundTintList = if (is05xSelected) selectedTint else originalBtnSpeed05xTint
+        btnSpeed05x.setTextColor(if (is05xSelected) selectedTextColor else originalBtnSpeed05xTextColor)
+        
+        val is1xSelected = playbackSpeed == 1.0f
+        btnSpeed1x.backgroundTintList = if (is1xSelected) selectedTint else originalBtnSpeed1xTint
+        btnSpeed1x.setTextColor(if (is1xSelected) selectedTextColor else originalBtnSpeed1xTextColor)
+        
+        val is2xSelected = playbackSpeed == 2.0f
+        btnSpeed2x.backgroundTintList = if (is2xSelected) selectedTint else originalBtnSpeed2xTint
+        btnSpeed2x.setTextColor(if (is2xSelected) selectedTextColor else originalBtnSpeed2xTextColor)
     }
     
     companion object {
