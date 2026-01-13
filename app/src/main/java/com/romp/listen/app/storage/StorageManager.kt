@@ -13,9 +13,25 @@ import com.romp.listen.app.util.AppLog
 class StorageManager(private val context: Context) {
     
     private val segmentsDir: File = File(context.filesDir, "segments").apply {
+        // Ensure directory exists and is writable
         if (!exists()) {
-            mkdirs()
+            val created = mkdirs()
+            if (!created || !exists()) {
+                val errorMsg = "Failed to create segments directory: $absolutePath"
+                AppLog.e(TAG, errorMsg)
+                throw RuntimeException(errorMsg)
+            }
+            AppLog.d(TAG, "Created segments directory: $absolutePath")
         }
+        
+        // Validate directory is writable
+        if (!canWrite()) {
+            val errorMsg = "Segments directory is not writable: $absolutePath"
+            AppLog.e(TAG, errorMsg)
+            throw RuntimeException(errorMsg)
+        }
+        
+        AppLog.d(TAG, "Segments directory initialized: $absolutePath (writable: ${canWrite()}, free space: ${freeSpace} bytes)")
     }
     
     /** Get the segments directory */
@@ -23,6 +39,21 @@ class StorageManager(private val context: Context) {
     
     /** Create a new segment file with timestamp-based naming */
     fun createSegmentFile(timestamp: Long): File {
+        // Ensure directory is still valid before creating file
+        if (!segmentsDir.exists()) {
+            AppLog.w(TAG, "Segments directory disappeared, recreating: ${segmentsDir.absolutePath}")
+            val created = segmentsDir.mkdirs()
+            if (!created || !segmentsDir.exists() || !segmentsDir.canWrite()) {
+                val errorMsg = "Cannot create segment file: directory is not accessible: ${segmentsDir.absolutePath}"
+                AppLog.e(TAG, errorMsg)
+                throw RuntimeException(errorMsg)
+            }
+        } else if (!segmentsDir.canWrite()) {
+            val errorMsg = "Cannot create segment file: directory is not writable: ${segmentsDir.absolutePath}"
+            AppLog.e(TAG, errorMsg)
+            throw RuntimeException(errorMsg)
+        }
+        
         val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US)
         val fileName = "segment_${dateFormat.format(Date(timestamp))}.m4a"
         return File(segmentsDir, fileName)
