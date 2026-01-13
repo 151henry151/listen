@@ -5,6 +5,22 @@ All notable changes to the Listen app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.7] - 2025-12-27
+
+### Fixed
+- **Ghost Segments Bug (Issue #20)**: Fixed race condition where segments appeared in the list but files didn't exist, especially with shorter segment lengths
+- **Database Validation**: Added file validation before adding segments to database (checks for file existence, readability, and non-empty status)
+- **File Flush Timing**: Added wait mechanism to ensure MediaRecorder files are fully flushed to disk before database insertion
+- **Cleanup Race Condition**: Prevented cleanup routines from deleting newly added segments immediately after creation
+
+### Technical Changes
+- **SegmentManagerService**: Added file validation in `addSegment()` to ensure files exist before database insertion
+- **AudioRecorderService**: Added `waitForFileToExist()` function with retry logic (up to 2 seconds) to ensure files are fully written
+- **Cleanup Protection**: Modified cleanup methods to accept `excludeSegmentId` parameter to protect newly added segments
+- **File Validation**: Enhanced file validation to check existence, readability, and file size before database operations
+
+---
+
 ## [1.1.6] - 2025-01-14
 
 ### Fixed
