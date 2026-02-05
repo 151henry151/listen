@@ -5,6 +5,33 @@ All notable changes to the Listen app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.5-beta] - 2026-02-05
+
+### Fixed
+- **Broken Segments (Regression in 1.2.4)**: Segments appearing in the list but with missing/corrupt files. Now automatically removes orphan database entries and filters them from the playback UI. Cleanup runs on service start and when each segment is added.
+- **Missed Recordings (1-hour Gaps with 30-min Segments)**: Extended file flush wait from 2s to 5s so large segments have time to be fully written before validation. Added brief initial delay to improve reliability on slower devices.
+
+### Technical Changes
+- **SegmentManagerService**: Added `cleanupOrphanDbEntries()` to remove DB entries whose files no longer exist (e.g. storage path change, external deletion)
+- **PlaybackActivity**: Filters out broken segments when loading; asynchronously removes them from DB
+- **ListenForegroundService**: Runs full cleanup (including orphan removal) when recording starts
+- **AudioRecorderService**: Extended `waitForFileToExist()` to 5 seconds with 150ms initial delay for 30-min segments
+
+---
+
+## [1.2.4-beta] - 2026-02-01
+
+### Fixed
+- **Save Error on Android 10+ / Android 15 (Issue #20)**: Fixed save failure that occurred when using MediaStore to write to Downloads. Save now uses app-specific storage (`getExternalFilesDir`), which works reliably on all Android versions without additional permissions
+- **Saved Tab Empty on Android 10+**: The Saved tab now correctly lists saved segments; previously it returned empty on Android 10+ because MediaStore query was not implemented
+
+### Technical Changes
+- **FileUtils**: Replaced MediaStore-based save with app-specific storage (getExternalFilesDir(Music)/Listen/) for saved segments
+- **FileUtils**: `getSavedSegmentFiles()` now takes Context and reads from app storage; `getSavedSegmentsDirectory()` now takes Context
+- **Storage**: Saved segments are stored in app-specific external storage; use Share button to export to other apps (Drive, email, etc.)
+
+---
+
 ## [1.2.3-beta] - 2026-01-13
 
 ### Fixed

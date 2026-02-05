@@ -163,13 +163,13 @@ class AudioRecorderService(
         }
     }
     
-    /** Wait for file to exist and have content (up to 2 seconds with retries) */
-    private fun waitForFileToExist(file: File?, maxWaitMs: Long = 2000L): File? {
+    /** Wait for file to exist and have content (default 5s for large segments) */
+    private fun waitForFileToExist(file: File?, maxWaitMs: Long = 5000L): File? {
         if (file == null) return null
-        
+        // Brief initial delay - some devices need time after MediaRecorder.stop() returns
+        try { Thread.sleep(150L) } catch (_: InterruptedException) { }
         val startTime = System.currentTimeMillis()
-        val checkInterval = 100L // Check every 100ms
-        
+        val checkInterval = 150L // Check every 150ms
         while (System.currentTimeMillis() - startTime < maxWaitMs) {
             try {
                 if (file.exists() && file.length() > 0 && file.canRead()) {

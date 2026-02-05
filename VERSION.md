@@ -1,11 +1,11 @@
 # Listen App - Version Information
 
-## Current Version: 1.0.0 (Build 2)
+## Current Version: 1.2.5-beta (Build 15)
 
-**Release Date**: August 23, 2025  
+**Release Date**: February 5, 2026  
 **Package Name**: com.romp.listen.app  
 **Build Type**: Release (Signed AAB)  
-**Target SDK**: 34 (Android 14)  
+**Target SDK**: 35 (Android 15)  
 **Min SDK**: 26 (Android 8.0)  
 
 ## Build Information

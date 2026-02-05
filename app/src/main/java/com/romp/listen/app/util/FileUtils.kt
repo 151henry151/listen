@@ -1,14 +1,11 @@
 package com.romp.listen.app.util
 
-import android.content.ContentValues
 import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMuxer
-import android.os.Build
 import android.os.Environment
-import android.provider.MediaStore
 import android.util.Log
 import java.io.File
 import java.io.FileInputStream
@@ -21,24 +18,40 @@ import java.util.*
  * Utility class for file operations including saving audio segments
  */
 object FileUtils {
-    
+
     private const val TAG = "FileUtils"
-    private const val SAVED_SEGMENTS_DIR = "listen-saved-segments"
-    
+    private const val SAVED_SEGMENTS_SUBDIR = "Listen"
+
     /**
-     * Get the Downloads directory path
+     * Get the app-specific directory for saved segments.
+     * Uses getExternalFilesDir which requires no special permissions and works
+     * reliably on all Android versions including Android 15.
+     */
+    fun getSavedSegmentsDirectory(context: Context): File {
+        val baseDir = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC)
+            ?: context.getExternalFilesDir(null)
+            ?: context.filesDir
+        return File(baseDir, SAVED_SEGMENTS_SUBDIR).apply {
+            if (!exists() && !mkdirs()) {
+                Log.e(TAG, "Failed to create saved segments directory: $absolutePath")
+            }
+        }
+    }
+
+    /**
+     * Get the Downloads directory path (legacy, for reference)
      */
     fun getDownloadsDirectory(): File {
         return Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
     }
-    
+
     /**
-     * Get the custom saved segments directory path
+     * Get the custom saved segments directory path (legacy Documents path)
      */
-    fun getSavedSegmentsDirectory(): File {
-        return File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), SAVED_SEGMENTS_DIR)
+    fun getSavedSegmentsDirectoryLegacy(): File {
+        return File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "listen-saved-segments")
     }
-    
+
     /**
      * Generate a default filename for a segment based on its timestamp
      */
@@ -48,13 +61,15 @@ object FileUtils {
         val date = Date(timestamp)
         return "listen_${dateFormat.format(date)}"
     }
-    
+
     /**
-     * Save an audio segment to Downloads directory (scoped storage compliant)
+     * Save an audio segment to app-specific storage (reliable on all Android versions including 15).
+     * Files are stored in getExternalFilesDir(Music)/Listen/ and can be shared via the Share button.
+     *
      * @param context Application context
      * @param segment The segment to save
      * @param customFilename Optional custom filename (without extension)
-     * @return The saved file URI path, or null if failed
+     * @return The saved file, or null if failed
      */
     fun saveSegmentToSavedDirectory(
         context: Context,
@@ -67,98 +82,40 @@ object FileUtils {
                 Log.e(TAG, "Source file does not exist: ${segment.filePath}")
                 return null
             }
-            
-            // Generate filename
-            val filename = customFilename ?: generateDefaultFilename(segment)
-            val filenameWithExt = "$filename.m4a"
-            
-            // Use MediaStore API for Android 10+ (API 29+), legacy method for older versions
-            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                saveSegmentUsingMediaStore(context, sourceFile, filenameWithExt)
-            } else {
-                saveSegmentLegacy(sourceFile, filenameWithExt)
+            if (!sourceFile.canRead()) {
+                Log.e(TAG, "Source file is not readable: ${segment.filePath}")
+                return null
             }
-            
+
+            val savedDir = getSavedSegmentsDirectory(context)
+            if (!savedDir.exists() && !savedDir.mkdirs()) {
+                Log.e(TAG, "Failed to create saved segments directory: ${savedDir.absolutePath}")
+                return null
+            }
+            if (!savedDir.canWrite()) {
+                Log.e(TAG, "Saved segments directory is not writable: ${savedDir.absolutePath}")
+                return null
+            }
+
+            val filename = customFilename ?: generateDefaultFilename(segment)
+            val filenameWithExt = if (filename.endsWith(".m4a", ignoreCase = true)) filename else "$filename.m4a"
+            val outputFile = File(savedDir, filenameWithExt)
+
+            val success = copyFile(sourceFile, outputFile)
+            if (success) {
+                Log.d(TAG, "Successfully saved segment to: ${outputFile.absolutePath}")
+                return outputFile
+            }
+            Log.e(TAG, "Failed to copy file to saved directory")
+            return null
         } catch (e: Exception) {
-            Log.e(TAG, "Error saving segment", e)
+            Log.e(TAG, "Error saving segment: ${e.message}", e)
             return null
         }
     }
-    
+
     /**
-     * Save segment using MediaStore API (Android 10+)
-     */
-    private fun saveSegmentUsingMediaStore(context: Context, sourceFile: File, filename: String): File? {
-        return try {
-            val contentValues = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-                put(MediaStore.MediaColumns.MIME_TYPE, "audio/mp4")
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-            }
-            
-            val resolver = context.contentResolver
-            val uri = resolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, contentValues)
-            
-            if (uri == null) {
-                Log.e(TAG, "Failed to create MediaStore entry")
-                return null
-            }
-            
-            // Copy file content to MediaStore URI
-            resolver.openOutputStream(uri)?.use { outputStream ->
-                FileInputStream(sourceFile).use { inputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-            }
-            
-            Log.d(TAG, "Successfully saved segment using MediaStore: $uri")
-            // Return a File object representing the saved file (for compatibility)
-            // Note: On Android 10+, we can't get a direct File path, but we return a placeholder
-            // The actual file is accessible via the URI
-            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), filename)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error saving segment using MediaStore", e)
-            null
-        }
-    }
-    
-    /**
-     * Save segment using legacy file system (Android 9 and below)
-     */
-    private fun saveSegmentLegacy(sourceFile: File, filename: String): File? {
-        return try {
-            val downloadsDir = getDownloadsDirectory()
-            
-            // Ensure Downloads directory exists
-            if (!downloadsDir.exists() && !downloadsDir.mkdirs()) {
-                Log.e(TAG, "Failed to create Downloads directory")
-                return null
-            }
-            
-            val outputFile = File(downloadsDir, filename)
-            
-            // Copy file
-            val success = copyFile(sourceFile, outputFile)
-            
-            if (success) {
-                Log.d(TAG, "Successfully saved segment to: ${outputFile.absolutePath}")
-                outputFile
-            } else {
-                Log.e(TAG, "Failed to copy file to Downloads")
-                null
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error saving segment (legacy)", e)
-            null
-        }
-    }
-    
-    /**
-     * Save an audio segment to the Downloads directory (legacy method)
-     * @param context Application context
-     * @param segment The segment to save
-     * @param customFilename Optional custom filename (without extension)
-     * @return The saved file, or null if failed
+     * Save an audio segment to the Downloads directory (legacy method, for backup/reference)
      */
     fun saveSegmentToDownloads(
         context: Context,
@@ -171,60 +128,42 @@ object FileUtils {
                 Log.e(TAG, "Source file does not exist: ${segment.filePath}")
                 return null
             }
-            
-            // Generate filename
+
             val filename = customFilename ?: generateDefaultFilename(segment)
             val downloadsDir = getDownloadsDirectory()
-            
-            // Ensure Downloads directory exists
+
             if (!downloadsDir.exists() && !downloadsDir.mkdirs()) {
                 Log.e(TAG, "Failed to create Downloads directory")
                 return null
             }
-            
-            // Convert AAC to M4A for better compatibility
+
             val outputFile = File(downloadsDir, "$filename.m4a")
-            
-            // For now, we'll do a simple copy since AAC files are already compatible
-            // In a future enhancement, we could add proper format conversion
             val success = copyFile(sourceFile, outputFile)
-            
+
             if (success) {
                 Log.d(TAG, "Successfully saved segment to: ${outputFile.absolutePath}")
                 return outputFile
-            } else {
-                Log.e(TAG, "Failed to copy file to Downloads")
-                return null
             }
-            
+            Log.e(TAG, "Failed to copy file to Downloads")
+            return null
         } catch (e: Exception) {
             Log.e(TAG, "Error saving segment", e)
             return null
         }
     }
-    
+
     /**
-     * Get all saved segment files from Downloads directory
-     * Note: On Android 10+, this uses MediaStore API
-     * @return List of saved segment files
+     * Get all saved segment files from app-specific storage.
+     * Works on all Android versions.
      */
-    fun getSavedSegmentFiles(): List<File> {
+    fun getSavedSegmentFiles(context: Context): List<File> {
         return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // For Android 10+, files are in Downloads directory via MediaStore
-                // We can list them, but for simplicity, return empty list
-                // The saved segments are now in Downloads and accessible via file manager
+            val savedDir = getSavedSegmentsDirectory(context)
+            if (!savedDir.exists()) {
                 emptyList()
             } else {
-                val downloadsDir = getDownloadsDirectory()
-                if (!downloadsDir.exists()) {
-                    return emptyList()
-                }
-                
-                downloadsDir.listFiles()
-                    ?.filter { it.isFile && 
-                              it.name.startsWith("listen_") &&
-                              it.extension.lowercase() in listOf("m4a", "aac", "mp3", "wav") }
+                savedDir.listFiles()
+                    ?.filter { it.isFile && it.extension.lowercase() in listOf("m4a", "aac", "mp3", "wav") }
                     ?.sortedByDescending { it.lastModified() }
                     ?: emptyList()
             }

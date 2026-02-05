@@ -14,6 +14,10 @@ import com.romp.listen.app.data.SavedSegment
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.io.File
+import java.io.FileWriter
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -141,6 +145,24 @@ class PlaybackActivity : AppCompatActivity() {
         btnSpeed1x = findViewById(R.id.btn_speed_1x)
         btnSpeed2x = findViewById(R.id.btn_speed_2x)
         
+        // #region agent log
+        debugLog("A", "PlaybackActivity.kt:147", "Button initialization", mapOf("btnPreviousNull" to (btnPrevious == null), "btnNextNull" to (btnNext == null), "btnSaveNull" to (btnSave == null), "btnDeleteNull" to (btnDelete == null), "btnPlayPauseNull" to (btnPlayPause == null), "btnStopNull" to (btnStop == null)))
+        // #endregion
+        
+        // Ensure buttons are clickable and focusable (defensive programming to prevent touch interception issues)
+        btnPrevious.isClickable = true
+        btnPrevious.isFocusable = true
+        btnNext.isClickable = true
+        btnNext.isFocusable = true
+        btnSave.isClickable = true
+        btnSave.isFocusable = true
+        btnDelete.isClickable = true
+        btnDelete.isFocusable = true
+        btnStop.isClickable = true
+        btnStop.isFocusable = true
+        btnPlayPause.isClickable = true
+        btnPlayPause.isFocusable = true
+        
         // Store original backgroundTintList and textColor values
         originalBtnSpeed05xTint = btnSpeed05x.backgroundTintList
         originalBtnSpeed1xTint = btnSpeed1x.backgroundTintList
@@ -149,47 +171,54 @@ class PlaybackActivity : AppCompatActivity() {
         originalBtnSpeed1xTextColor = btnSpeed1x.textColors
         originalBtnSpeed2xTextColor = btnSpeed2x.textColors
         
-        // Set up ViewPager and TabLayout
-        pagerAdapter = PlaybackPagerAdapter(this)
-        viewPager.adapter = pagerAdapter
-        
-        TabLayoutMediator(tabLayout, viewPager) { tab, position ->
-            tab.text = when (position) {
-                0 -> getString(R.string.tab_rotating_segments)
-                1 -> getString(R.string.tab_saved_segments)
-                else -> null
-            }
-        }.attach()
-        
-        // Set up fragment click listeners after ViewPager is initialized
-        viewPager.post {
-            setupFragmentListeners()
-        }
-        
+        // Set up ALL button listeners BEFORE ViewPager setup to prevent touch interception
         btnPlayPause.setOnClickListener {
+            // #region agent log
+            debugLog("A", "PlaybackActivity.kt:169", "btnPlayPause clicked")
+            // #endregion
             if (isPlaying()) {
                 pausePlayback()
                 updatePlayPauseButton()
             } else {
-                resumePlayback()
+                // If mediaPlayer is null (after stop), restart playback
+                if (mediaPlayer == null) {
+                    when (viewPager.currentItem) {
+                        0 -> currentSegment?.let { playSegment(it) }
+                        1 -> currentSavedSegment?.let { playSavedSegment(it) }
+                    }
+                } else {
+                    resumePlayback()
+                }
                 updatePlayPauseButton()
             }
         }
         
         btnStop.setOnClickListener {
+            // #region agent log
+            debugLog("A", "PlaybackActivity.kt:179", "btnStop clicked")
+            // #endregion
             stopPlayback()
             updatePlayPauseButton()
         }
         
         btnPrevious.setOnClickListener {
+            // #region agent log
+            debugLog("A", "PlaybackActivity.kt:184", "btnPrevious clicked", mapOf("currentSegmentIndex" to currentSegmentIndex, "segmentsSize" to segments.size))
+            // #endregion
             playPreviousSegment()
         }
         
         btnNext.setOnClickListener {
+            // #region agent log
+            debugLog("A", "PlaybackActivity.kt:188", "btnNext clicked", mapOf("currentSegmentIndex" to currentSegmentIndex, "segmentsSize" to segments.size))
+            // #endregion
             playNextSegment()
         }
         
         btnSave.setOnClickListener {
+            // #region agent log
+            debugLog("A", "PlaybackActivity.kt:192", "btnSave clicked", mapOf("currentSegment" to (currentSegment?.id?.toString() ?: "null"), "viewPagerItem" to viewPager.currentItem))
+            // #endregion
             when (viewPager.currentItem) {
                 0 -> currentSegment?.let { segment ->
                     showSaveDialog(segment)
@@ -222,6 +251,9 @@ class PlaybackActivity : AppCompatActivity() {
         }
         
         btnDelete.setOnClickListener {
+            // #region agent log
+            debugLog("A", "PlaybackActivity.kt:224", "btnDelete clicked", mapOf("currentSegment" to (currentSegment?.id?.toString() ?: "null"), "viewPagerItem" to viewPager.currentItem))
+            // #endregion
             when (viewPager.currentItem) {
                 0 -> currentSegment?.let { segment ->
                     showDeleteSegmentDialog(segment)
@@ -241,15 +273,44 @@ class PlaybackActivity : AppCompatActivity() {
         
         // Set up playback speed buttons
         btnSpeed05x.setOnClickListener {
+            // #region agent log
+            debugLog("A", "PlaybackActivity.kt:243", "btnSpeed05x clicked")
+            // #endregion
             setPlaybackSpeed(0.5f)
         }
         btnSpeed1x.setOnClickListener {
+            // #region agent log
+            debugLog("A", "PlaybackActivity.kt:247", "btnSpeed1x clicked")
+            // #endregion
             setPlaybackSpeed(1.0f)
         }
         btnSpeed2x.setOnClickListener {
+            // #region agent log
+            debugLog("A", "PlaybackActivity.kt:251", "btnSpeed2x clicked")
+            // #endregion
             setPlaybackSpeed(2.0f)
         }
         updatePlaybackSpeedButtons()
+        
+        // Set up ViewPager and TabLayout AFTER button listeners are set up
+        pagerAdapter = PlaybackPagerAdapter(this)
+        viewPager.adapter = pagerAdapter
+        
+        // Disable ViewPager2 swipe gestures to prevent it from intercepting button clicks
+        viewPager.isUserInputEnabled = false
+        
+        TabLayoutMediator(tabLayout, viewPager) { tab, position ->
+            tab.text = when (position) {
+                0 -> getString(R.string.tab_rotating_segments)
+                1 -> getString(R.string.tab_saved_segments)
+                else -> null
+            }
+        }.attach()
+        
+        // Set up fragment click listeners after ViewPager is initialized
+        viewPager.post {
+            setupFragmentListeners()
+        }
         
         // Handle window insets for navigation bar
         val rootLayout = findViewById<androidx.constraintlayout.widget.ConstraintLayout>(R.id.root_layout_playback)
@@ -348,9 +409,15 @@ class PlaybackActivity : AppCompatActivity() {
     
     /** Update current segment information display */
     private fun updateCurrentSegmentInfo(segment: Segment) {
+        // #region agent log
+        debugLog("C", "PlaybackActivity.kt:350", "updateCurrentSegmentInfo called", mapOf("segmentId" to segment.id, "segmentIndex" to segments.indexOf(segment)))
+        // #endregion
         currentSegment = segment
         tvCurrentSegment.text = File(segment.filePath).name
         currentSegmentIndex = segments.indexOf(segment)
+        // #region agent log
+        debugLog("C", "PlaybackActivity.kt:353", "currentSegment updated", mapOf("currentSegment" to segment.id, "currentSegmentIndex" to currentSegmentIndex))
+        // #endregion
         updateNavigationButtons()
         updateSegmentHighlight()
         AppLog.d(TAG, "Updated current segment info: ${segment.filePath}")
@@ -369,13 +436,23 @@ class PlaybackActivity : AppCompatActivity() {
     
     /** Update navigation buttons state */
     private fun updateNavigationButtons() {
+        // #region agent log
+        debugLog("B", "PlaybackActivity.kt:371", "updateNavigationButtons called", mapOf("viewPagerItem" to viewPager.currentItem, "currentSegment" to (currentSegment?.id?.toString() ?: "null"), "currentSegmentIndex" to currentSegmentIndex, "segmentsSize" to segments.size))
+        // #endregion
         when (viewPager.currentItem) {
             0 -> {
                 // Rotating segments tab
-                btnPrevious.isEnabled = currentSegmentIndex > 0
-                btnNext.isEnabled = currentSegmentIndex < segments.size - 1
-                btnSave.isEnabled = currentSegment != null
-                btnDelete.isEnabled = currentSegment != null
+                val prevEnabled = currentSegmentIndex > 0
+                val nextEnabled = currentSegmentIndex < segments.size - 1
+                val saveEnabled = currentSegment != null
+                val deleteEnabled = currentSegment != null
+                btnPrevious.isEnabled = prevEnabled
+                btnNext.isEnabled = nextEnabled
+                btnSave.isEnabled = saveEnabled
+                btnDelete.isEnabled = deleteEnabled
+                // #region agent log
+                debugLog("B", "PlaybackActivity.kt:375", "Button states set", mapOf("btnPrevious" to prevEnabled, "btnNext" to nextEnabled, "btnSave" to saveEnabled, "btnDelete" to deleteEnabled))
+                // #endregion
                 updateButtonVisibilityForRotatingTab()
             }
             1 -> {
@@ -618,8 +695,23 @@ class PlaybackActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 database.segmentDao().getAllSegments().collect { segments ->
-                    AppLog.d(TAG, "Loaded ${segments.size} segments")
-                    updateSegmentsList(segments)
+                    // Filter out broken segments (DB entries whose files no longer exist)
+                    // and trigger async cleanup to remove them from DB
+                    val validSegments = segments.filter { segment ->
+                        val file = File(segment.filePath)
+                        val exists = file.exists() && file.canRead() && file.length() > 0
+                        if (!exists) {
+                            AppLog.d(TAG, "Filtering broken segment (file missing): ${segment.filePath}")
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                database.segmentDao().deleteSegment(segment)
+                            }
+                            false
+                        } else {
+                            true
+                        }
+                    }
+                    AppLog.d(TAG, "Loaded ${validSegments.size} segments (filtered ${segments.size - validSegments.size} broken)")
+                    updateSegmentsList(validSegments)
                 }
             } catch (e: Exception) {
                 AppLog.e(TAG, "Error loading segments", e)
@@ -632,7 +724,7 @@ class PlaybackActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 AppLog.d(TAG, "Loading saved segments...")
-                val savedFiles = FileUtils.getSavedSegmentFiles()
+                val savedFiles = FileUtils.getSavedSegmentFiles(this@PlaybackActivity)
                 AppLog.d(TAG, "Found ${savedFiles.size} saved segment files")
                 
                 val savedSegmentsList = savedFiles.map { file ->
@@ -1078,8 +1170,10 @@ class PlaybackActivity : AppCompatActivity() {
         currentSavedSegment = null
         updateSegmentHighlight() // Clear highlighting when playback stops
         abandonAudioFocus()
-        btnPlayPause.isEnabled = false
         btnStop.isEnabled = false
+        // Enable play button if a segment is selected (so user can restart playback)
+        btnPlayPause.isEnabled = (viewPager.currentItem == 0 && currentSegment != null) || 
+                                 (viewPager.currentItem == 1 && currentSavedSegment != null)
         // Keep save/delete buttons enabled if a segment is selected
         updateNavigationButtons()
         seekBar.isEnabled = false
@@ -1224,6 +1318,9 @@ class PlaybackActivity : AppCompatActivity() {
     
     /** Set playback speed */
     private fun setPlaybackSpeed(speed: Float) {
+        // #region agent log
+        debugLog("E", "PlaybackActivity.kt:1226", "setPlaybackSpeed called", mapOf("speed" to speed, "currentPlaybackSpeed" to playbackSpeed))
+        // #endregion
         playbackSpeed = speed
         updatePlaybackSpeedButtons()
         applyPlaybackSpeed()
@@ -1246,6 +1343,9 @@ class PlaybackActivity : AppCompatActivity() {
     
     /** Update playback speed button states */
     private fun updatePlaybackSpeedButtons() {
+        // #region agent log
+        debugLog("D", "PlaybackActivity.kt:1308", "updatePlaybackSpeedButtons called", mapOf("playbackSpeed" to playbackSpeed, "original05xTintNull" to (originalBtnSpeed05xTint == null), "original1xTintNull" to (originalBtnSpeed1xTint == null), "original2xTintNull" to (originalBtnSpeed2xTint == null)))
+        // #endregion
         val primaryColor = ContextCompat.getColor(this, R.color.button_primary)
         val whiteColor = ContextCompat.getColor(this, R.color.white)
         val selectedTint = ColorStateList.valueOf(primaryColor)
@@ -1263,9 +1363,18 @@ class PlaybackActivity : AppCompatActivity() {
         val is2xSelected = playbackSpeed == 2.0f
         btnSpeed2x.backgroundTintList = if (is2xSelected) selectedTint else originalBtnSpeed2xTint
         btnSpeed2x.setTextColor(if (is2xSelected) selectedTextColor else originalBtnSpeed2xTextColor)
+        // #region agent log
+        debugLog("D", "PlaybackActivity.kt:1325", "Button states updated", mapOf("is05xSelected" to is05xSelected, "is1xSelected" to is1xSelected, "is2xSelected" to is2xSelected))
+        // #endregion
     }
     
     companion object {
         private const val TAG = "PlaybackActivity"
+        // #region agent log
+        private fun debugLog(hypothesisId: String, location: String, message: String, data: Map<String, Any?> = emptyMap()) {
+            val dataStr = data.entries.joinToString(", ") { "${it.key}=${it.value}" }
+            AppLog.d(TAG, "[H$hypothesisId] $location: $message | $dataStr")
+        }
+        // #endregion
     }
 } 

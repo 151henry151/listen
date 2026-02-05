@@ -12,6 +12,10 @@ interface SegmentDao {
     /** Get all segments ordered by start time (newest first) */
     @Query("SELECT * FROM segments ORDER BY startTime DESC")
     fun getAllSegments(): Flow<List<Segment>>
+
+    /** Get all segments as list (for validation/cleanup) */
+    @Query("SELECT * FROM segments")
+    suspend fun getAllSegmentsList(): List<Segment>
     
     /** Get segments within a time range */
     @Query("SELECT * FROM segments WHERE startTime >= :startTime AND endTime <= :endTime ORDER BY startTime DESC")

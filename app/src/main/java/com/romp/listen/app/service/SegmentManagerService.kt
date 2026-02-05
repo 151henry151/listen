@@ -84,6 +84,10 @@ class SegmentManagerService(
     fun performCleanup(excludeSegmentId: Long? = null) {
         scope.launch {
             try {
+                // Clean up orphan DB entries first (segments whose files no longer exist)
+                // This addresses "broken segments" that appear in the list but files are missing
+                cleanupOrphanDbEntries(excludeSegmentId)
+
                 // Clean up old segments based on retention period
                 cleanupOldSegments(excludeSegmentId)
                 
@@ -96,6 +100,27 @@ class SegmentManagerService(
             } catch (e: Exception) {
                 AppLog.e(TAG, "Error during cleanup", e)
             }
+        }
+    }
+
+    /**
+     * Remove database entries for segments whose files no longer exist.
+     * This can happen when: storage path changes, external file deletion,
+     * or service restart with different storage config.
+     */
+    private suspend fun cleanupOrphanDbEntries(excludeSegmentId: Long? = null) {
+        val allSegments = segmentDao.getAllSegmentsList()
+        var removedCount = 0
+        for (segment in allSegments) {
+            if (excludeSegmentId != null && segment.id == excludeSegmentId) continue
+            if (!File(segment.filePath).exists()) {
+                segmentDao.deleteSegment(segment)
+                removedCount++
+                AppLog.d(TAG, "Removed orphan DB entry (file missing): ${segment.filePath}")
+            }
+        }
+        if (removedCount > 0) {
+            AppLog.d(TAG, "Cleaned up $removedCount orphan segment entries (broken segments)")
         }
     }
     

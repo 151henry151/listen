@@ -248,6 +248,9 @@ class ListenForegroundService : Service() {
             
             val started = startRecording()
             if (started) {
+                // Clean up orphan DB entries (broken segments) from previous runs
+                // e.g. when storage path changed or files were externally deleted
+                segmentManager.performCleanup()
                 // Request audio focus
                 requestAudioFocus()
                 startInServiceRotationScheduler()
